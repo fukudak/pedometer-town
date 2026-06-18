@@ -14,8 +14,14 @@ import 'package:pedometer_town/services/health_service.dart';
 class FakeHealthService extends HealthService {
   int totalSteps;
   Object? error;
+  Object? permissionError;
 
   FakeHealthService({this.totalSteps = 0});
+
+  @override
+  Future<void> requestPermissions() async {
+    if (permissionError != null) throw permissionError!;
+  }
 
   @override
   Future<int> getTodaySteps() async {

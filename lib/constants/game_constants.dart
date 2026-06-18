@@ -24,6 +24,9 @@ class GameConstants {
   /// デフォルト難易度
   static const String defaultDifficulty = 'normal';
 
+  /// アプリのバージョン文字列（pubspec.yaml の version と合わせて管理）
+  static const String appVersion = '0.9';
+
   /// 1日のエネルギー上限 (Wh)
   static const double dailyEnergyCapWh = 5000.0;
 

@@ -29,7 +29,7 @@ class EnergyProvider extends ChangeNotifier {
   })  : _now = now ?? DateTime.now,
         _coefficientSupplier =
             coefficientSupplier ?? (() => GameConstants.energyCoefficient),
-        _battery = _storage.loadBatteryState(),
+        _battery = _storage.loadBatteryState(_storage.loadTownState().buildings),
         _today = _storage
             .loadDailyStepRecord(_dateKey((now ?? DateTime.now)()));
 
@@ -100,7 +100,8 @@ class EnergyProvider extends ChangeNotifier {
 
   /// 永続化済みの値で表示を更新する。
   void refreshDisplay() {
-    _battery = _storage.loadBatteryState();
+    final town = _storage.loadTownState();
+    _battery = _storage.loadBatteryState(town.buildings);
     _today = _storage.loadDailyStepRecord(_dateKey(_now()));
     notifyListeners();
   }
