@@ -50,6 +50,23 @@ Result: `flutter analyze` → "No issues found!"; `flutter test` → 42 passed (
 - Dart の initializer list ではすでにバインドされた `this._storage` に対してメソッド呼び出しが可能なことを確認。
 - `flutter analyze` → "No issues found!"; `flutter test` → 42 passed。
 
+## Round 2 — Phase 5 完了 — N7/N8/N9 実装 (2026-06-19)
+
+### N7 (PlayerSettings.difficulty 除去) ✓
+- `PlayerSettings.difficulty`、`LocalStorage._keyDifficulty`、`GameConstants.defaultDifficulty` を除去。
+- `local_storage_test.dart` の3箇所の difficulty アサーションも削除。
+- 既存の `player_difficulty` SharedPreferences キーは孤立するが、プレリリース段階で既存インストールなし。
+
+### N8 (Building.level 除去) ✓
+- `Building.level` フィールド、コンストラクタ引数、`toJson` の `'level'` エントリ、`fromJson` の `level` 読み取りを削除。
+- 既存の JSON に `"level"` キーが残っていても Dart が余剰キーを無視するため互換性あり。
+
+### N9 (日次記録 7日間保持) ✓
+- `LocalStorage.pruneOldDailyRecords({int keepDays = 30})` を追加。
+- `EnergyProvider.syncStepsFromHealth` の日付ロールオーバー検出後に `keepDays: 7` で呼び出し。
+- テスト追加: 8日前のレコードは削除、1日前のレコードは保持されることを確認。
+- `flutter analyze` → "No issues found!"; `flutter test` → 43 passed。
+
 ## Round 2 — Phase 5 — PROPOSE-ONLY 設計案 (N4, N6, N7, N8, N9, N10)
 
 ### N4 (setCoefficientSupplier の契約)

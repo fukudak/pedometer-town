@@ -18,7 +18,6 @@ class LocalStorage {
 
   static const _keyWeight = 'player_weight_kg';
   static const _keySpeed = 'player_default_speed_kmh';
-  static const _keyDifficulty = 'player_difficulty';
   static const _keyBatteryStored = 'battery_stored_wh';
   static const _keyTownBuildings = 'town_buildings';
   static const _dailyRecordPrefix = 'daily_record_';
@@ -28,15 +27,12 @@ class LocalStorage {
       weightKg: _prefs.getDouble(_keyWeight) ?? GameConstants.defaultWeightKg,
       defaultSpeedKmh:
           _prefs.getDouble(_keySpeed) ?? GameConstants.defaultSpeedKmh,
-      difficulty:
-          _prefs.getString(_keyDifficulty) ?? GameConstants.defaultDifficulty,
     );
   }
 
   Future<void> savePlayerSettings(PlayerSettings settings) async {
     await _prefs.setDouble(_keyWeight, settings.weightKg);
     await _prefs.setDouble(_keySpeed, settings.defaultSpeedKmh);
-    await _prefs.setString(_keyDifficulty, settings.difficulty);
   }
 
   /// 蓄電池容量は建物効果から都度算出するため永続化しない（容量は建物リストが真実の源）。
@@ -81,5 +77,19 @@ class LocalStorage {
       '$_dailyRecordPrefix${record.date}',
       jsonEncode(record.toJson()),
     );
+  }
+
+  /// keepDays 日より古い日次記録を削除する。
+  Future<void> pruneOldDailyRecords({int keepDays = 30}) async {
+    final cutoff = DateTime.now().subtract(Duration(days: keepDays));
+    final keys = _prefs
+        .getKeys()
+        .where((k) => k.startsWith(_dailyRecordPrefix))
+        .toList();
+    for (final key in keys) {
+      final dateStr = key.substring(_dailyRecordPrefix.length);
+      final date = DateTime.tryParse(dateStr);
+      if (date != null && date.isBefore(cutoff)) await _prefs.remove(key);
+    }
   }
 }
