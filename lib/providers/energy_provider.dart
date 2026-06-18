@@ -15,7 +15,7 @@ class EnergyProvider extends ChangeNotifier {
   final SettingsProvider _settingsProvider;
 
   final DateTime Function() _now;
-  final double Function() _coefficientSupplier;
+  double Function() _coefficientSupplier;
 
   BatteryState _battery;
   DailyStepRecord _today;
@@ -33,6 +33,10 @@ class EnergyProvider extends ChangeNotifier {
         _today = _storage
             .loadDailyStepRecord(_dateKey((now ?? DateTime.now)()));
 
+  void setCoefficientSupplier(double Function() supplier) {
+    _coefficientSupplier = supplier;
+  }
+
   BatteryState get battery => _battery;
   DailyStepRecord get today => _today;
 
@@ -44,6 +48,8 @@ class EnergyProvider extends ChangeNotifier {
 
   /// Health から今日の歩数を取得し、差分をエネルギーに変換して蓄電池に加算する。
   Future<void> syncStepsFromHealth() async {
+    await _healthService.requestPermissions();
+
     final todayKey = _dateKey(_now());
     if (_today.date != todayKey) {
       _today = DailyStepRecord.empty(todayKey);
@@ -52,7 +58,10 @@ class EnergyProvider extends ChangeNotifier {
     final totalSteps = await _healthService.getTodaySteps();
     final deltaSteps = totalSteps - _today.lastSyncedSteps;
 
-    if (deltaSteps <= 0) {
+    // delta < 0 は再起動によるセンサーリセット。センサー現在値を新規歩数として扱う。
+    final effectiveDelta = deltaSteps < 0 ? totalSteps : deltaSteps;
+
+    if (effectiveDelta == 0) {
       _today = _today.copyWith(lastSyncedSteps: totalSteps);
       await _persist();
       notifyListeners();
@@ -61,7 +70,7 @@ class EnergyProvider extends ChangeNotifier {
 
     final settings = _settingsProvider.settings;
     final newEnergyWh = EnergyCalculator.calculateEnergyWh(
-      steps: deltaSteps,
+      steps: effectiveDelta,
       weightKg: settings.weightKg,
       speedKmh: settings.defaultSpeedKmh,
       coefficient: _coefficientSupplier(),
@@ -73,7 +82,7 @@ class EnergyProvider extends ChangeNotifier {
 
     _battery = _battery.addEnergy(addableEnergyWh);
     _today = _today.copyWith(
-      totalSteps: _today.totalSteps + deltaSteps,
+      totalSteps: _today.totalSteps + effectiveDelta,
       totalEnergyWh: _today.totalEnergyWh + addableEnergyWh,
       lastSyncedSteps: totalSteps,
     );

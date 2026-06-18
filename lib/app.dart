@@ -9,7 +9,7 @@ import 'providers/town_provider.dart';
 import 'screens/home_screen.dart';
 import 'services/health_service.dart';
 
-class PedometerTownApp extends StatelessWidget {
+class PedometerTownApp extends StatefulWidget {
   final SharedPreferences prefs;
   final HealthService healthService;
 
@@ -20,31 +20,37 @@ class PedometerTownApp extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final storage = LocalStorage(prefs);
+  State<PedometerTownApp> createState() => _PedometerTownAppState();
+}
 
+class _PedometerTownAppState extends State<PedometerTownApp> {
+  late final SettingsProvider _settingsProvider;
+  late final EnergyProvider _energyProvider;
+  late final TownProvider _townProvider;
+
+  @override
+  void initState() {
+    super.initState();
+    final storage = LocalStorage(widget.prefs);
+    _settingsProvider = SettingsProvider(storage);
+    _energyProvider = EnergyProvider(
+      storage,
+      widget.healthService,
+      _settingsProvider,
+    );
+    _townProvider = TownProvider(storage, _energyProvider);
+    _energyProvider.setCoefficientSupplier(
+      () => _townProvider.effectiveCoefficient,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-          create: (_) => SettingsProvider(storage),
-        ),
-        ChangeNotifierProvider(
-          create: (context) => EnergyProvider(
-            storage,
-            healthService,
-            context.read<SettingsProvider>(),
-            // TownProvider はこの後に登録されるが、呼び出し時点では
-            // ツリーに存在するため遅延参照で問題ない。
-            coefficientSupplier: () =>
-                context.read<TownProvider>().effectiveCoefficient,
-          ),
-        ),
-        ChangeNotifierProvider(
-          create: (context) => TownProvider(
-            storage,
-            context.read<EnergyProvider>(),
-          ),
-        ),
+        ChangeNotifierProvider.value(value: _settingsProvider),
+        ChangeNotifierProvider.value(value: _energyProvider),
+        ChangeNotifierProvider.value(value: _townProvider),
       ],
       child: MaterialApp(
         title: '万歩計タウン',
