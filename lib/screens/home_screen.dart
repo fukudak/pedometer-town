@@ -14,6 +14,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  bool _isSyncing = false;
+
   @override
   void initState() {
     super.initState();
@@ -29,20 +31,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // バックグラウンドから復帰した際、永続化済みの値で表示を更新する。
-      context.read<EnergyProvider>().refreshDisplay();
+      _sync(context);
     }
   }
 
   Future<void> _sync(BuildContext context) async {
-    final energyProvider = context.read<EnergyProvider>();
+    if (_isSyncing) return;
+    _isSyncing = true;
     try {
-      await energyProvider.syncStepsFromHealth();
+      await context.read<EnergyProvider>().syncStepsFromHealth();
     } on HealthServiceException catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message)),
       );
+    } finally {
+      _isSyncing = false;
     }
   }
 
