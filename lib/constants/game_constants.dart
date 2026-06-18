@@ -21,9 +21,6 @@ class GameConstants {
   static const double maxSpeedKmh = 15.0;
   static const double defaultSpeedKmh = 5.0;
 
-  /// デフォルト難易度
-  static const String defaultDifficulty = 'normal';
-
   /// アプリのバージョン文字列（pubspec.yaml の version と合わせて管理）
   static const String appVersion = '0.9';
 

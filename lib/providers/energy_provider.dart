@@ -53,6 +53,7 @@ class EnergyProvider extends ChangeNotifier {
     final todayKey = _dateKey(_now());
     if (_today.date != todayKey) {
       _today = DailyStepRecord.empty(todayKey);
+      await _storage.pruneOldDailyRecords(keepDays: 7);
     }
 
     final totalSteps = await _healthService.getTodaySteps();

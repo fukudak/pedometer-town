@@ -20,22 +20,16 @@ void main() {
       final settings = storage.loadPlayerSettings();
       expect(settings.weightKg, GameConstants.defaultWeightKg);
       expect(settings.defaultSpeedKmh, GameConstants.defaultSpeedKmh);
-      expect(settings.difficulty, GameConstants.defaultDifficulty);
     });
 
     test('保存した値が読み込める', () async {
       final storage = LocalStorage(await SharedPreferences.getInstance());
       await storage.savePlayerSettings(
-        const PlayerSettings(
-          weightKg: 84,
-          defaultSpeedKmh: 6.0,
-          difficulty: 'normal',
-        ),
+        const PlayerSettings(weightKg: 84, defaultSpeedKmh: 6.0),
       );
       final loaded = storage.loadPlayerSettings();
       expect(loaded.weightKg, 84);
       expect(loaded.defaultSpeedKmh, 6.0);
-      expect(loaded.difficulty, 'normal');
     });
   });
 
@@ -113,6 +107,26 @@ void main() {
 
       final other = storage.loadDailyStepRecord('2026-06-14');
       expect(other.totalSteps, 0);
+    });
+
+    test('pruneOldDailyRecords: keepDays より古いレコードは削除される', () async {
+      final storage = LocalStorage(await SharedPreferences.getInstance());
+      // 8日前（削除対象）と1日前（保持対象）を保存
+      final old = DateTime.now().subtract(const Duration(days: 8));
+      final recent = DateTime.now().subtract(const Duration(days: 1));
+      String fmt(DateTime d) =>
+          '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      await storage.saveDailyStepRecord(
+        DailyStepRecord(date: fmt(old), totalSteps: 100, totalEnergyWh: 1.0, lastSyncedSteps: 100),
+      );
+      await storage.saveDailyStepRecord(
+        DailyStepRecord(date: fmt(recent), totalSteps: 200, totalEnergyWh: 2.0, lastSyncedSteps: 200),
+      );
+
+      await storage.pruneOldDailyRecords(keepDays: 7);
+
+      expect(storage.loadDailyStepRecord(fmt(old)).totalSteps, 0);
+      expect(storage.loadDailyStepRecord(fmt(recent)).totalSteps, 200);
     });
   });
 }
