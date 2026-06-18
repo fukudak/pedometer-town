@@ -2,8 +2,10 @@
 class GameConstants {
   GameConstants._();
 
-  /// 難易度係数（MVP: normal のみ）
+  /// 発電変換係数（歩数→エネルギー変換の基準倍率）
   static const double energyCoefficient = 0.01;
+  static const double minEnergyCoefficient = 0.001;
+  static const double maxEnergyCoefficient = 0.1;
 
   /// 体重の基準値 (kg)
   static const double referenceWeightKg = 70.0;

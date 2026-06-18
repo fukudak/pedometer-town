@@ -43,10 +43,13 @@ class _TownScreenState extends State<TownScreen> {
             )
           else
             ...town.buildings.map(
-              (building) => ListTile(
-                leading: const Icon(Icons.location_city),
-                title: Text(BuildingDefinitions.of(building.type).displayName),
-              ),
+              (building) {
+                final def = BuildingDefinitions.of(building.type);
+                return ListTile(
+                  leading: Icon(def.icon),
+                  title: Text(def.displayName),
+                );
+              },
             ),
           const Divider(height: 32),
           const Text('建設可能な建物', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -54,7 +57,7 @@ class _TownScreenState extends State<TownScreen> {
             final definition = BuildingDefinitions.of(type);
             final canBuild = townProvider.canBuild(type);
             return ListTile(
-              leading: const Icon(Icons.add_business),
+              leading: Icon(definition.icon),
               title: Text(definition.displayName),
               subtitle: Text('コスト: ${definition.costWh.toStringAsFixed(0)} Wh'),
               trailing: ElevatedButton(

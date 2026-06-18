@@ -121,7 +121,7 @@ void main() {
         settingsProvider,
         coefficientSupplier: () => townProvider.effectiveCoefficient,
       );
-      townProvider = TownProvider(storage, provider);
+      townProvider = TownProvider(storage, provider, settingsProvider);
 
       // 公園の建設コスト(800Wh)分のエネルギーを確保する
       await provider.applyBatteryState(

@@ -18,6 +18,7 @@ class LocalStorage {
 
   static const _keyWeight = 'player_weight_kg';
   static const _keySpeed = 'player_default_speed_kmh';
+  static const _keyCoefficient = 'player_energy_coefficient';
   static const _keyBatteryStored = 'battery_stored_wh';
   static const _keyTownBuildings = 'town_buildings';
   static const _dailyRecordPrefix = 'daily_record_';
@@ -27,12 +28,15 @@ class LocalStorage {
       weightKg: _prefs.getDouble(_keyWeight) ?? GameConstants.defaultWeightKg,
       defaultSpeedKmh:
           _prefs.getDouble(_keySpeed) ?? GameConstants.defaultSpeedKmh,
+      energyCoefficient:
+          _prefs.getDouble(_keyCoefficient) ?? GameConstants.energyCoefficient,
     );
   }
 
   Future<void> savePlayerSettings(PlayerSettings settings) async {
     await _prefs.setDouble(_keyWeight, settings.weightKg);
     await _prefs.setDouble(_keySpeed, settings.defaultSpeedKmh);
+    await _prefs.setDouble(_keyCoefficient, settings.energyCoefficient);
   }
 
   /// 蓄電池容量は建物効果から都度算出するため永続化しない（容量は建物リストが真実の源）。

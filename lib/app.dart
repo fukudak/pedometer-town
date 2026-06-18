@@ -38,7 +38,7 @@ class _PedometerTownAppState extends State<PedometerTownApp> {
       widget.healthService,
       _settingsProvider,
     );
-    _townProvider = TownProvider(storage, _energyProvider);
+    _townProvider = TownProvider(storage, _energyProvider, _settingsProvider);
     _energyProvider.setCoefficientSupplier(
       () => _townProvider.effectiveCoefficient,
     );

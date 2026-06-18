@@ -20,7 +20,7 @@ void main() {
     storage = LocalStorage(await SharedPreferences.getInstance());
     settingsProvider = SettingsProvider(storage);
     energyProvider = EnergyProvider(storage, HealthService(), settingsProvider);
-    townProvider = TownProvider(storage, energyProvider);
+    townProvider = TownProvider(storage, energyProvider, settingsProvider);
   });
 
   group('TownProvider.buildBuilding', () {

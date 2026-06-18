@@ -25,7 +25,7 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// デフォルト速度を更新する。範囲外の場合は [ArgumentError] を throw する。
+  /// 歩行速度を更新する。範囲外の場合は [ArgumentError] を throw する。
   Future<void> updateSpeed(double speedKmh) async {
     if (!PlayerSettings.isValidSpeed(speedKmh)) {
       throw ArgumentError(
@@ -33,6 +33,18 @@ class SettingsProvider extends ChangeNotifier {
       );
     }
     _settings = _settings.copyWith(defaultSpeedKmh: speedKmh);
+    await _storage.savePlayerSettings(_settings);
+    notifyListeners();
+  }
+
+  /// 発電変換係数を更新する。範囲外の場合は [ArgumentError] を throw する。
+  Future<void> updateCoefficient(double coefficient) async {
+    if (!PlayerSettings.isValidCoefficient(coefficient)) {
+      throw ArgumentError(
+        '係数は${GameConstants.minEnergyCoefficient}〜${GameConstants.maxEnergyCoefficient}の範囲で指定してください',
+      );
+    }
+    _settings = _settings.copyWith(energyCoefficient: coefficient);
     await _storage.savePlayerSettings(_settings);
     notifyListeners();
   }

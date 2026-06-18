@@ -1,15 +1,19 @@
+import 'package:flutter/material.dart';
+
 import '../domain/models/building.dart';
 
-/// 建物の静的定義（コスト・表示名・効果値）
+/// 建物の静的定義（コスト・表示名・アイコン・効果値）
 class BuildingDefinition {
   final BuildingType type;
   final String displayName;
   final double costWh;
+  final IconData icon;
 
   const BuildingDefinition({
     required this.type,
     required this.displayName,
     required this.costWh,
+    required this.icon,
   });
 }
 
@@ -27,16 +31,19 @@ class BuildingDefinitions {
       type: BuildingType.house,
       displayName: '住宅',
       costWh: 500.0,
+      icon: Icons.house,
     ),
     BuildingType.powerPlant: BuildingDefinition(
       type: BuildingType.powerPlant,
       displayName: '発電所',
       costWh: 1000.0,
+      icon: Icons.bolt,
     ),
     BuildingType.park: BuildingDefinition(
       type: BuildingType.park,
       displayName: '公園',
       costWh: 800.0,
+      icon: Icons.park,
     ),
   };
 

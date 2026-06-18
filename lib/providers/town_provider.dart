@@ -6,15 +6,17 @@ import '../domain/models/building.dart';
 import '../domain/models/town_state.dart';
 import '../domain/town_logic.dart';
 import 'energy_provider.dart';
+import 'settings_provider.dart';
 
 /// 町（建物）の状態管理
 class TownProvider extends ChangeNotifier {
   final LocalStorage _storage;
   final EnergyProvider _energyProvider;
+  final SettingsProvider _settingsProvider;
 
   TownState _town;
 
-  TownProvider(this._storage, this._energyProvider)
+  TownProvider(this._storage, this._energyProvider, this._settingsProvider)
       : _town = _storage.loadTownState();
 
   TownState get town => _town;
@@ -25,9 +27,9 @@ class TownProvider extends ChangeNotifier {
         _town.buildings,
       );
 
-  /// エネルギー係数（建物効果込み）
+  /// エネルギー係数（ユーザー設定ベース × 建物効果）
   double get effectiveCoefficient => TownLogic.effectiveCoefficient(
-        GameConstants.energyCoefficient,
+        _settingsProvider.settings.energyCoefficient,
         _town.buildings,
       );
 
