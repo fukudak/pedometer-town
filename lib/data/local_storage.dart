@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/game_constants.dart';
 import '../domain/models/battery_state.dart';
+import '../domain/models/building.dart';
 import '../domain/models/daily_step_record.dart';
 import '../domain/models/player_settings.dart';
 import '../domain/models/town_state.dart';
@@ -39,13 +40,14 @@ class LocalStorage {
   }
 
   /// 蓄電池容量は建物効果から都度算出するため永続化しない（容量は建物リストが真実の源）。
-  BatteryState loadBatteryState() {
+  /// 呼び出し元は事前に [loadTownState] で取得した buildings を渡すこと。
+  BatteryState loadBatteryState(List<Building> buildings) {
     return BatteryState(
       storedWh: _prefs.getDouble(_keyBatteryStored) ??
           GameConstants.initialBatteryStoredWh,
       capacityWh: TownLogic.effectiveCapacity(
         GameConstants.initialBatteryCapacityWh,
-        loadTownState().buildings,
+        buildings,
       ),
     );
   }

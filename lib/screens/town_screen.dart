@@ -5,8 +5,23 @@ import '../constants/building_definitions.dart';
 import '../domain/models/building.dart';
 import '../providers/town_provider.dart';
 
-class TownScreen extends StatelessWidget {
+class TownScreen extends StatefulWidget {
   const TownScreen({super.key});
+
+  @override
+  State<TownScreen> createState() => _TownScreenState();
+}
+
+class _TownScreenState extends State<TownScreen> {
+  Future<void> _build(TownProvider townProvider, BuildingType type) async {
+    final ok = await townProvider.buildBuilding(type);
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('エネルギーが不足しています')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,9 +58,7 @@ class TownScreen extends StatelessWidget {
               title: Text(definition.displayName),
               subtitle: Text('コスト: ${definition.costWh.toStringAsFixed(0)} Wh'),
               trailing: ElevatedButton(
-                onPressed: canBuild
-                    ? () => townProvider.buildBuilding(type)
-                    : null,
+                onPressed: canBuild ? () => _build(townProvider, type) : null,
                 child: const Text('建設'),
               ),
             );

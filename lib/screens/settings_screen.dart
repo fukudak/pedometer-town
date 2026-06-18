@@ -69,6 +69,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onPressed: _save,
               child: const Text('保存'),
             ),
+            const Spacer(),
+            Center(
+              child: Text(
+                'バージョン ${GameConstants.appVersion}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+              ),
+            ),
+            const SizedBox(height: 8),
           ],
         ),
       ),

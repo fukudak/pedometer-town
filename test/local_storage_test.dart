@@ -42,7 +42,7 @@ void main() {
   group('BatteryState', () {
     test('未保存時はデフォルト値を返す', () async {
       final storage = LocalStorage(await SharedPreferences.getInstance());
-      final battery = storage.loadBatteryState();
+      final battery = storage.loadBatteryState(const []);
       expect(battery.storedWh, GameConstants.initialBatteryStoredWh);
       expect(battery.capacityWh, GameConstants.initialBatteryCapacityWh);
     });
@@ -52,16 +52,15 @@ void main() {
       await storage.saveBatteryState(
         const BatteryState(storedWh: 123.5, capacityWh: 12000),
       );
-      final loaded = storage.loadBatteryState();
+      final loaded = storage.loadBatteryState(const []);
       expect(loaded.storedWh, 123.5);
     });
 
     test('容量は建物リストから算出される（発電所1棟で+2000Wh）', () async {
       final storage = LocalStorage(await SharedPreferences.getInstance());
-      await storage.saveTownState(const TownState(buildings: [
-        Building(type: BuildingType.powerPlant),
-      ]));
-      final loaded = storage.loadBatteryState();
+      const buildings = [Building(type: BuildingType.powerPlant)];
+      await storage.saveTownState(const TownState(buildings: buildings));
+      final loaded = storage.loadBatteryState(buildings);
       expect(loaded.capacityWh, GameConstants.initialBatteryCapacityWh + 2000);
     });
   });
