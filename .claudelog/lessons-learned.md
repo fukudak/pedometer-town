@@ -119,3 +119,44 @@ try {
 }
 ```
 優先度低。`configure()` が失敗するシナリオはプラットフォームの Health API が存在しない環境に限られ、現行の対応プラットフォーム（iOS/Android）では起きない。
+
+## Round 3 — Phase 0 — Baseline
+- `git status --short` → `M refactor-instructions.md`（このラウンドの指示書編集のみ。コード側の未コミット変更なし）。
+- `flutter analyze` → "No issues found!"
+- `flutter test` → 53 passed。
+- M1〜M5 はすべて人間確認済みで IMPLEMENT 権限。Phase 1〜5 へ進む。
+
+## Round 3 — Phase 1 — TownLogic にグリッド範囲検証を追加 (M1)
+- `TownLogic.isWithinGrid(x, y)` を追加し、`canBuild` の先頭で範囲外なら false を返すガードを追加。
+- `TownProvider.buildBuilding` にも同様のガードを `isOccupied` チェックの前に追加。
+- `test/town_logic_test.dart` に範囲外座標（負・上限超過）のテストケースを4件追加（`canBuild` 2件 + `isWithinGrid` 専用グループ3件、うち1件は範囲内確認）。
+- `test/town_provider_test.dart` に範囲外座標での `buildBuilding` 失敗テストを1件追加。
+- `flutter analyze` → "No issues found!"; `flutter test` → 59 passed（53 baseline + 6 新規）。
+- 既存の唯一の呼び出し元（`TownScreen`）は GridView の index から座標を計算するため動作に変化なし。
+
+## Round 3 — Phase 2 — HistoryScreen の削除失敗を確実に反映する (M2)
+- `confirmDismiss` 内でダイアログが `true` を返した直後に `await EnergyProvider.deleteHistoryRecord` を実行し、完了後に `true` を返すよう変更。`onDismissed` は削除（処理を `confirmDismiss` に統合）。
+- 1回目の `flutter analyze` で `use_build_context_synchronously`（`history_screen.dart:97`）が検出された。`await` の後に `context` を使う前に `context.mounted` チェックを追加して解消。教訓: confirmDismiss を async 化して await を挟む場合、ダイアログ完了後の `context.read` 呼び出し前に必ず `mounted` チェックが必要（StatelessWidget でも `BuildContext` 自体の mounted は有効）。
+- `flutter analyze` → "No issues found!"; `flutter test` → 59 passed（件数変化なし、既存テストの動作確認のみ）。
+
+## Round 3 — Phase 3 — HealthService のストレージ責務を LocalStorage に統合 (M3)
+- `LocalStorage` に `loadAndroidStepBaseline()`（`({String? date, int? steps})` レコード型を返す）/ `saveAndroidStepBaseline(date, steps)` を追加。キー名 `health_android_baseline_date` / `health_android_baseline_steps` はそのまま移動（変更なし）。
+- `HealthService` のコンストラクタに `LocalStorage? storage` を追加（initializing formal `this._storage`。Dart の仕様で、フィールド名が `_storage` でも初期化フォーマルのパラメータの公開名はアンダースコア無しの `storage` になる — 確認済み）。`_getStepsFromSensor` 内の直接 `SharedPreferences.getInstance()` 呼び出しを `_storage` 経由に置き換え、`dart:io` 以外の `package:shared_preferences` import を `health_service.dart` から削除。
+- `_storage` が未注入の場合は `StateError` を throw（サイレントなフォールバックは作らない）。
+- `lib/main.dart` の初期化順序を入れ替え: `SharedPreferences.getInstance()` → `LocalStorage` 生成 → `HealthService(storage: storage)` 生成 → `configure()`。
+- `test/widget_test.dart` / `test/town_provider_test.dart` の `HealthService()` 呼び出し（storage未指定）はそのまま変更不要。テスト環境では `Platform.isAndroid` が false（macOS/Linux実行）であり、かつどちらのテストも `syncStepsFromHealth`/`getTodaySteps` を実行しないため `_getStepsFromSensor` は呼ばれない。
+- 1回目の `flutter analyze` で `prefer_initializing_formals`（`health_service.dart:42`）が検出されたため `this._storage` に変更して解消。
+- `flutter analyze` → "No issues found!"; `flutter test` → 59 passed（件数変化なし）。
+
+## Round 3 — Phase 4 — 履歴管理を HistoryProvider に分離 (M4)
+- `lib/providers/history_provider.dart` を新規作成。`loadHistory`/`deleteHistoryRecord`/`clearHistory` を `EnergyProvider` から移管。`HistoryProvider` は `EnergyProvider` への参照を保持し、削除対象が今日の記録の場合は `EnergyProvider.refreshDisplay()` を呼んで整合性を保つ（元の実装は `_today = DailyStepRecord.empty(date)` で直接書き換えていたが、`refreshDisplay()` は削除後のストレージから再読込するため等価。`clearHistory` も同様）。
+- `EnergyProvider` から該当3メソッドを削除。
+- `lib/app.dart` に `HistoryProvider` の `ChangeNotifierProvider.value` を追加（`EnergyProvider`/`TownProvider` 生成後）。
+- `lib/screens/history_screen.dart` の `context.watch/read<EnergyProvider>()` を `HistoryProvider` に変更。
+- 既存の `test/energy_provider_test.dart`・`test/history_screen.dart` 系には履歴管理の単体テストが元から存在しなかったため、新規に `test/history_provider_test.dart` を作成（loadHistory のソート確認、deleteHistoryRecord が今日/今日以外で挙動が変わることの確認、clearHistory の確認、計5件）。
+- `flutter analyze` → "No issues found!"; `flutter test` → 64 passed（59 + 新規5件）。
+
+## Round 3 — Phase 5 — main() の healthService.configure() をガード (M5)
+- `lib/main.dart` の `await healthService.configure();` を `try { ... } catch (_) { }` でラップ。失敗時もアプリは起動を続行し、歩数同期時に `HealthServiceException` として通常のエラーUXで処理される（既存の `HomeScreen._sync` の catch がそのまま機能する）。
+- `flutter analyze` → "No issues found!"; `flutter test` → 64 passed（件数変化なし）。
+- Round 3 の Phase 0〜5 全完了。M1〜M5 すべて実装済み。

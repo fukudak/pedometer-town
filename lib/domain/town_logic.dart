@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../constants/building_definitions.dart';
+import '../constants/game_constants.dart';
 import 'models/battery_state.dart';
 import 'models/building.dart';
 
@@ -39,7 +40,15 @@ class TownLogic {
     return buildings.any((b) => b.x == x && b.y == y);
   }
 
-  /// 指定座標が空いていて、かつ蓄電池残量で建設可能かどうか
+  /// 指定座標が草原グリッドの範囲内かどうか
+  static bool isWithinGrid(int x, int y) {
+    return x >= 0 &&
+        x < GameConstants.townGridSize &&
+        y >= 0 &&
+        y < GameConstants.townGridSize;
+  }
+
+  /// 指定座標がグリッド内かつ空いていて、かつ蓄電池残量で建設可能かどうか
   static bool canBuild(
     BatteryState battery,
     BuildingType type,
@@ -47,6 +56,7 @@ class TownLogic {
     int x,
     int y,
   ) {
+    if (!isWithinGrid(x, y)) return false;
     if (isOccupied(buildings, x, y)) return false;
     return battery.storedWh >= costOf(type);
   }

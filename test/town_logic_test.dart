@@ -91,6 +91,51 @@ void main() {
         isFalse,
       );
     });
+
+    test('座標がグリッド範囲外（負の値）なら残量があっても建設不可', () {
+      const battery = BatteryState(storedWh: 500, capacityWh: 10000);
+      expect(
+        TownLogic.canBuild(battery, BuildingType.house, const [], -1, 0),
+        isFalse,
+      );
+    });
+
+    test('座標がグリッド範囲外（上限超過）なら残量があっても建設不可', () {
+      const battery = BatteryState(storedWh: 500, capacityWh: 10000);
+      expect(
+        TownLogic.canBuild(
+          battery,
+          BuildingType.house,
+          const [],
+          GameConstants.townGridSize,
+          0,
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  group('TownLogic.isWithinGrid', () {
+    test('範囲内の座標は true', () {
+      expect(TownLogic.isWithinGrid(0, 0), isTrue);
+      expect(
+        TownLogic.isWithinGrid(
+          GameConstants.townGridSize - 1,
+          GameConstants.townGridSize - 1,
+        ),
+        isTrue,
+      );
+    });
+
+    test('負の座標は false', () {
+      expect(TownLogic.isWithinGrid(-1, 0), isFalse);
+      expect(TownLogic.isWithinGrid(0, -1), isFalse);
+    });
+
+    test('グリッドサイズ以上の座標は false', () {
+      expect(TownLogic.isWithinGrid(GameConstants.townGridSize, 0), isFalse);
+      expect(TownLogic.isWithinGrid(0, GameConstants.townGridSize), isFalse);
+    });
   });
 
   group('TownLogic.isOccupied', () {

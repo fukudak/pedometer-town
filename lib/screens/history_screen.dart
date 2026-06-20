@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../domain/models/daily_step_record.dart';
-import '../providers/energy_provider.dart';
+import '../providers/history_provider.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
@@ -26,14 +26,14 @@ class HistoryScreen extends StatelessWidget {
       ),
     );
     if (confirmed == true && context.mounted) {
-      await context.read<EnergyProvider>().clearHistory();
+      await context.read<HistoryProvider>().clearHistory();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final List<DailyStepRecord> records =
-        context.watch<EnergyProvider>().loadHistory();
+        context.watch<HistoryProvider>().loadHistory();
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -74,25 +74,31 @@ class HistoryScreen extends StatelessWidget {
                     child: Icon(Icons.delete,
                         color: colorScheme.onErrorContainer),
                   ),
-                  confirmDismiss: (_) => showDialog<bool>(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: const Text('この記録を削除'),
-                      content: Text('${_formatDate(record.date)} の記録を削除します。'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(false),
-                          child: const Text('キャンセル'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(true),
-                          child: const Text('削除'),
-                        ),
-                      ],
-                    ),
-                  ),
-                  onDismissed: (_) {
-                    context.read<EnergyProvider>().deleteHistoryRecord(record.date);
+                  confirmDismiss: (_) async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: const Text('この記録を削除'),
+                        content:
+                            Text('${_formatDate(record.date)} の記録を削除します。'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: const Text('キャンセル'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(true),
+                            child: const Text('削除'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed != true) return false;
+                    if (!context.mounted) return false;
+                    await context.read<HistoryProvider>().deleteHistoryRecord(
+                          record.date,
+                        );
+                    return true;
                   },
                   child: Card(
                     margin: const EdgeInsets.only(bottom: 8),

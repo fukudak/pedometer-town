@@ -49,8 +49,11 @@ class TownProvider extends ChangeNotifier {
     );
   }
 
-  /// 指定座標に建物を建設する。座標が空いていない、またはエネルギー不足の場合は false を返す。
+  /// 指定座標に建物を建設する。座標がグリッド範囲外・空いていない、またはエネルギー不足の場合は false を返す。
   Future<bool> buildBuilding(BuildingType type, int x, int y) async {
+    if (!TownLogic.isWithinGrid(x, y)) {
+      return false;
+    }
     if (TownLogic.isOccupied(_town.buildings, x, y)) {
       return false;
     }
