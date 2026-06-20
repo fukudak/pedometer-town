@@ -4,12 +4,16 @@
 <dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>歩行速度の計測に位置情報を使用します</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>歩数データを読み取り、ゲーム内のエネルギーに変換するために使用します</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Pedometer Town</string>
+	<string>万歩計タウン</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

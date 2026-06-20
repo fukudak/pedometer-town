@@ -1,5 +1,5 @@
 name: pedometer_town
-description: "A new Flutter project."
+description: "万歩計タウン - 歩いて発電し、町を育てる歩数連動シミュレーションゲーム"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev

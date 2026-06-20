@@ -1,17 +1,26 @@
-# pedometer_town
+# 万歩計タウン
 
-A new Flutter project.
+歩いて発電し、町を育てるシミュレーションゲーム。歩数から発電したエネルギーを使って草原に建物を建設し、町を発展させます。
 
-## Getting Started
+## 主な機能
 
-This project is a starting point for a Flutter application.
+- iOS（HealthKit）/ Android（ハードウェアセンサー）から歩数を取得し、エネルギーに変換
+- 5×5の草原グリッドに住宅・発電所・公園を配置して町を発展させる
+- GPS による歩行速度の計測
+- 過去の歩数・発電量の履歴表示
+- 体重・歩行速度・発電変換係数のカスタム設定
 
-A few resources to get you started if this is your first Flutter project:
+## 開発
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```bash
+flutter pub get
+flutter analyze
+flutter test
+flutter run
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## ストア公開準備
+
+公開に向けた進捗・チェックリストは [docs/store-release-checklist.md](docs/store-release-checklist.md)、
+具体的な操作手順は [docs/release-procedures.md](docs/release-procedures.md) を参照してください。
+プライバシーポリシーは [docs/privacy.html](docs/privacy.html) で公開しています。
