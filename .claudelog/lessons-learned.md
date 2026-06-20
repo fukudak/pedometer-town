@@ -138,3 +138,12 @@ try {
 - `confirmDismiss` 内でダイアログが `true` を返した直後に `await EnergyProvider.deleteHistoryRecord` を実行し、完了後に `true` を返すよう変更。`onDismissed` は削除（処理を `confirmDismiss` に統合）。
 - 1回目の `flutter analyze` で `use_build_context_synchronously`（`history_screen.dart:97`）が検出された。`await` の後に `context` を使う前に `context.mounted` チェックを追加して解消。教訓: confirmDismiss を async 化して await を挟む場合、ダイアログ完了後の `context.read` 呼び出し前に必ず `mounted` チェックが必要（StatelessWidget でも `BuildContext` 自体の mounted は有効）。
 - `flutter analyze` → "No issues found!"; `flutter test` → 59 passed（件数変化なし、既存テストの動作確認のみ）。
+
+## Round 3 — Phase 3 — HealthService のストレージ責務を LocalStorage に統合 (M3)
+- `LocalStorage` に `loadAndroidStepBaseline()`（`({String? date, int? steps})` レコード型を返す）/ `saveAndroidStepBaseline(date, steps)` を追加。キー名 `health_android_baseline_date` / `health_android_baseline_steps` はそのまま移動（変更なし）。
+- `HealthService` のコンストラクタに `LocalStorage? storage` を追加（initializing formal `this._storage`。Dart の仕様で、フィールド名が `_storage` でも初期化フォーマルのパラメータの公開名はアンダースコア無しの `storage` になる — 確認済み）。`_getStepsFromSensor` 内の直接 `SharedPreferences.getInstance()` 呼び出しを `_storage` 経由に置き換え、`dart:io` 以外の `package:shared_preferences` import を `health_service.dart` から削除。
+- `_storage` が未注入の場合は `StateError` を throw（サイレントなフォールバックは作らない）。
+- `lib/main.dart` の初期化順序を入れ替え: `SharedPreferences.getInstance()` → `LocalStorage` 生成 → `HealthService(storage: storage)` 生成 → `configure()`。
+- `test/widget_test.dart` / `test/town_provider_test.dart` の `HealthService()` 呼び出し（storage未指定）はそのまま変更不要。テスト環境では `Platform.isAndroid` が false（macOS/Linux実行）であり、かつどちらのテストも `syncStepsFromHealth`/`getTodaySteps` を実行しないため `_getStepsFromSensor` は呼ばれない。
+- 1回目の `flutter analyze` で `prefer_initializing_formals`（`health_service.dart:42`）が検出されたため `this._storage` に変更して解消。
+- `flutter analyze` → "No issues found!"; `flutter test` → 59 passed（件数変化なし）。

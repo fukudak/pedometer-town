@@ -24,6 +24,8 @@ class LocalStorage {
   static const _dailyRecordPrefix = 'daily_record_';
   static const _keyLastSyncedAt = 'last_synced_at';
   static const _keyLifetimeEnergyWh = 'lifetime_energy_wh';
+  static const _keyAndroidBaselineDate = 'health_android_baseline_date';
+  static const _keyAndroidBaselineSteps = 'health_android_baseline_steps';
 
   PlayerSettings loadPlayerSettings() {
     return PlayerSettings(
@@ -127,5 +129,16 @@ class LocalStorage {
 
   Future<void> saveLifetimeEnergyWh(double wh) async {
     await _prefs.setDouble(_keyLifetimeEnergyWh, wh);
+  }
+
+  /// Android センサーの「今日0:00時点の累積歩数」ベースライン。
+  ({String? date, int? steps}) loadAndroidStepBaseline() => (
+        date: _prefs.getString(_keyAndroidBaselineDate),
+        steps: _prefs.getInt(_keyAndroidBaselineSteps),
+      );
+
+  Future<void> saveAndroidStepBaseline(String date, int steps) async {
+    await _prefs.setString(_keyAndroidBaselineDate, date);
+    await _prefs.setInt(_keyAndroidBaselineSteps, steps);
   }
 }

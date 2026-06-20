@@ -4,7 +4,8 @@ import 'dart:io';
 import 'package:health/health.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../data/local_storage.dart';
 
 /// [HealthService.normalizeAndroidSteps] の結果
 class AndroidStepNormalizationResult {
@@ -34,15 +35,16 @@ class HealthServiceException implements Exception {
 /// - Android: ハードウェアステップカウンターセンサー（pedometer_plus）
 class HealthService {
   final Health _health;
+  final LocalStorage? _storage;
 
-  HealthService({Health? health}) : _health = health ?? Health();
+  HealthService({Health? health, this._storage})
+      : _health = health ?? Health();
 
   static const _types = [HealthDataType.STEPS];
 
   // Android センサーは端末起動時からの累積値を返すため、
-  // 「今日0:00時点のセンサー値」をベースラインとして永続化し、今日分の歩数に正規化する。
-  static const _keyAndroidBaselineDate = 'health_android_baseline_date';
-  static const _keyAndroidBaselineSteps = 'health_android_baseline_steps';
+  // 「今日0:00時点のセンサー値」をベースラインとして LocalStorage に永続化し、
+  // 今日分の歩数に正規化する。
 
   Future<void> configure() async {
     if (!Platform.isAndroid) {
@@ -82,18 +84,27 @@ class HealthService {
   }
 
   Future<int> _getStepsFromSensor() async {
+    final storage = _storage;
+    if (storage == null) {
+      throw StateError(
+        'HealthService に LocalStorage が注入されていません（Android歩数の正規化に必要）。',
+      );
+    }
+
     final rawSteps = await _readRawSensorSteps();
-    final prefs = await SharedPreferences.getInstance();
+    final baseline = storage.loadAndroidStepBaseline();
 
     final result = normalizeAndroidSteps(
       rawSteps: rawSteps,
       todayKey: _dateKey(DateTime.now()),
-      storedBaselineDate: prefs.getString(_keyAndroidBaselineDate),
-      storedBaselineSteps: prefs.getInt(_keyAndroidBaselineSteps),
+      storedBaselineDate: baseline.date,
+      storedBaselineSteps: baseline.steps,
     );
 
-    await prefs.setString(_keyAndroidBaselineDate, result.baselineDate);
-    await prefs.setInt(_keyAndroidBaselineSteps, result.baselineSteps);
+    await storage.saveAndroidStepBaseline(
+      result.baselineDate,
+      result.baselineSteps,
+    );
     return result.todaySteps;
   }
 
