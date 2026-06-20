@@ -12,7 +12,11 @@ void main() async {
   final storage = LocalStorage(prefs);
 
   final healthService = HealthService(storage: storage);
-  await healthService.configure();
+  try {
+    await healthService.configure();
+  } catch (_) {
+    // configure 失敗時もアプリは続行する。同期時に HealthServiceException として処理される。
+  }
 
   runApp(PedometerTownApp(prefs: prefs, healthService: healthService));
 }

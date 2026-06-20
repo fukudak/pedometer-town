@@ -155,3 +155,8 @@ try {
 - `lib/screens/history_screen.dart` の `context.watch/read<EnergyProvider>()` を `HistoryProvider` に変更。
 - 既存の `test/energy_provider_test.dart`・`test/history_screen.dart` 系には履歴管理の単体テストが元から存在しなかったため、新規に `test/history_provider_test.dart` を作成（loadHistory のソート確認、deleteHistoryRecord が今日/今日以外で挙動が変わることの確認、clearHistory の確認、計5件）。
 - `flutter analyze` → "No issues found!"; `flutter test` → 64 passed（59 + 新規5件）。
+
+## Round 3 — Phase 5 — main() の healthService.configure() をガード (M5)
+- `lib/main.dart` の `await healthService.configure();` を `try { ... } catch (_) { }` でラップ。失敗時もアプリは起動を続行し、歩数同期時に `HealthServiceException` として通常のエラーUXで処理される（既存の `HomeScreen._sync` の catch がそのまま機能する）。
+- `flutter analyze` → "No issues found!"; `flutter test` → 64 passed（件数変化なし）。
+- Round 3 の Phase 0〜5 全完了。M1〜M5 すべて実装済み。
