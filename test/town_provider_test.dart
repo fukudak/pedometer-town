@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:pedometer_town/constants/game_constants.dart';
 import 'package:pedometer_town/data/local_storage.dart';
 import 'package:pedometer_town/domain/models/battery_state.dart';
 import 'package:pedometer_town/domain/models/building.dart';
@@ -62,6 +63,22 @@ void main() {
       expect(first, isTrue);
       expect(second, isFalse);
       expect(townProvider.town.buildings.length, 1);
+    });
+
+    test('座標がグリッド範囲外の場合は建設に失敗し状態は変化しない', () async {
+      await energyProvider.applyBatteryState(
+        const BatteryState(storedWh: 2000, capacityWh: 10000),
+      );
+
+      final result = await townProvider.buildBuilding(
+        BuildingType.house,
+        GameConstants.townGridSize,
+        0,
+      );
+
+      expect(result, isFalse);
+      expect(energyProvider.battery.storedWh, 2000);
+      expect(townProvider.town.buildings, isEmpty);
     });
   });
 

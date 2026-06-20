@@ -119,3 +119,17 @@ try {
 }
 ```
 優先度低。`configure()` が失敗するシナリオはプラットフォームの Health API が存在しない環境に限られ、現行の対応プラットフォーム（iOS/Android）では起きない。
+
+## Round 3 — Phase 0 — Baseline
+- `git status --short` → `M refactor-instructions.md`（このラウンドの指示書編集のみ。コード側の未コミット変更なし）。
+- `flutter analyze` → "No issues found!"
+- `flutter test` → 53 passed。
+- M1〜M5 はすべて人間確認済みで IMPLEMENT 権限。Phase 1〜5 へ進む。
+
+## Round 3 — Phase 1 — TownLogic にグリッド範囲検証を追加 (M1)
+- `TownLogic.isWithinGrid(x, y)` を追加し、`canBuild` の先頭で範囲外なら false を返すガードを追加。
+- `TownProvider.buildBuilding` にも同様のガードを `isOccupied` チェックの前に追加。
+- `test/town_logic_test.dart` に範囲外座標（負・上限超過）のテストケースを4件追加（`canBuild` 2件 + `isWithinGrid` 専用グループ3件、うち1件は範囲内確認）。
+- `test/town_provider_test.dart` に範囲外座標での `buildBuilding` 失敗テストを1件追加。
+- `flutter analyze` → "No issues found!"; `flutter test` → 59 passed（53 baseline + 6 新規）。
+- 既存の唯一の呼び出し元（`TownScreen`）は GridView の index から座標を計算するため動作に変化なし。
