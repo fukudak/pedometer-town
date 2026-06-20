@@ -107,25 +107,6 @@ class EnergyProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 保存済みの全日次記録を日付の新しい順に返す（無期限保持）。
-  List<DailyStepRecord> loadHistory() => _storage.loadAllDailyRecords();
-
-  /// 指定日の日次記録を削除する。削除対象が今日の記録なら表示も空にする。
-  Future<void> deleteHistoryRecord(String date) async {
-    await _storage.deleteDailyRecord(date);
-    if (_today.date == date) {
-      _today = DailyStepRecord.empty(date);
-    }
-    notifyListeners();
-  }
-
-  /// 全ての日次記録を削除する。
-  Future<void> clearHistory() async {
-    await _storage.clearAllDailyRecords();
-    _today = DailyStepRecord.empty(_today.date);
-    notifyListeners();
-  }
-
   /// 永続化済みの値で表示を更新する。
   void refreshDisplay() {
     final town = _storage.loadTownState();

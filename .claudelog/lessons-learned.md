@@ -147,3 +147,11 @@ try {
 - `test/widget_test.dart` / `test/town_provider_test.dart` の `HealthService()` 呼び出し（storage未指定）はそのまま変更不要。テスト環境では `Platform.isAndroid` が false（macOS/Linux実行）であり、かつどちらのテストも `syncStepsFromHealth`/`getTodaySteps` を実行しないため `_getStepsFromSensor` は呼ばれない。
 - 1回目の `flutter analyze` で `prefer_initializing_formals`（`health_service.dart:42`）が検出されたため `this._storage` に変更して解消。
 - `flutter analyze` → "No issues found!"; `flutter test` → 59 passed（件数変化なし）。
+
+## Round 3 — Phase 4 — 履歴管理を HistoryProvider に分離 (M4)
+- `lib/providers/history_provider.dart` を新規作成。`loadHistory`/`deleteHistoryRecord`/`clearHistory` を `EnergyProvider` から移管。`HistoryProvider` は `EnergyProvider` への参照を保持し、削除対象が今日の記録の場合は `EnergyProvider.refreshDisplay()` を呼んで整合性を保つ（元の実装は `_today = DailyStepRecord.empty(date)` で直接書き換えていたが、`refreshDisplay()` は削除後のストレージから再読込するため等価。`clearHistory` も同様）。
+- `EnergyProvider` から該当3メソッドを削除。
+- `lib/app.dart` に `HistoryProvider` の `ChangeNotifierProvider.value` を追加（`EnergyProvider`/`TownProvider` 生成後）。
+- `lib/screens/history_screen.dart` の `context.watch/read<EnergyProvider>()` を `HistoryProvider` に変更。
+- 既存の `test/energy_provider_test.dart`・`test/history_screen.dart` 系には履歴管理の単体テストが元から存在しなかったため、新規に `test/history_provider_test.dart` を作成（loadHistory のソート確認、deleteHistoryRecord が今日/今日以外で挙動が変わることの確認、clearHistory の確認、計5件）。
+- `flutter analyze` → "No issues found!"; `flutter test` → 64 passed（59 + 新規5件）。

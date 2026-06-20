@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/local_storage.dart';
 import 'providers/energy_provider.dart';
+import 'providers/history_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/town_provider.dart';
 import 'screens/home_screen.dart';
@@ -27,6 +28,7 @@ class _PedometerTownAppState extends State<PedometerTownApp> {
   late final SettingsProvider _settingsProvider;
   late final EnergyProvider _energyProvider;
   late final TownProvider _townProvider;
+  late final HistoryProvider _historyProvider;
 
   @override
   void initState() {
@@ -42,6 +44,7 @@ class _PedometerTownAppState extends State<PedometerTownApp> {
     _energyProvider.setCoefficientSupplier(
       () => _townProvider.effectiveCoefficient,
     );
+    _historyProvider = HistoryProvider(storage, _energyProvider);
   }
 
   @override
@@ -51,6 +54,7 @@ class _PedometerTownAppState extends State<PedometerTownApp> {
         ChangeNotifierProvider.value(value: _settingsProvider),
         ChangeNotifierProvider.value(value: _energyProvider),
         ChangeNotifierProvider.value(value: _townProvider),
+        ChangeNotifierProvider.value(value: _historyProvider),
       ],
       child: MaterialApp(
         title: '万歩計タウン',
