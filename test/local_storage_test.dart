@@ -78,6 +78,19 @@ void main() {
       expect(loaded.buildings[0].type, BuildingType.house);
       expect(loaded.buildings[1].type, BuildingType.powerPlant);
     });
+
+    test('座標導入前の旧データ（x, yなし）も例外なく読み込め、座標は(0,0)になる', () async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('town_buildings', '[{"type":"house"}]');
+      final storage = LocalStorage(prefs);
+
+      final loaded = storage.loadTownState();
+
+      expect(loaded.buildings.length, 1);
+      expect(loaded.buildings[0].type, BuildingType.house);
+      expect(loaded.buildings[0].x, 0);
+      expect(loaded.buildings[0].y, 0);
+    });
   });
 
   group('DailyStepRecord', () {
