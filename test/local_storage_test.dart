@@ -52,7 +52,7 @@ void main() {
 
     test('容量は建物リストから算出される（発電所1棟で+2000Wh）', () async {
       final storage = LocalStorage(await SharedPreferences.getInstance());
-      const buildings = [Building(type: BuildingType.powerPlant)];
+      const buildings = [Building(type: BuildingType.powerPlant, x: 0, y: 0)];
       await storage.saveTownState(const TownState(buildings: buildings));
       final loaded = storage.loadBatteryState(buildings);
       expect(loaded.capacityWh, GameConstants.initialBatteryCapacityWh + 2000);
@@ -69,8 +69,8 @@ void main() {
     test('建物リストを保存して復元できる', () async {
       final storage = LocalStorage(await SharedPreferences.getInstance());
       const town = TownState(buildings: [
-        Building(type: BuildingType.house),
-        Building(type: BuildingType.powerPlant),
+        Building(type: BuildingType.house, x: 0, y: 0),
+        Building(type: BuildingType.powerPlant, x: 1, y: 0),
       ]);
       await storage.saveTownState(town);
       final loaded = storage.loadTownState();
@@ -109,24 +109,79 @@ void main() {
       expect(other.totalSteps, 0);
     });
 
-    test('pruneOldDailyRecords: keepDays より古いレコードは削除される', () async {
+    test('loadAllDailyRecords: 保存済みレコードを日付の新しい順に返す', () async {
       final storage = LocalStorage(await SharedPreferences.getInstance());
-      // 8日前（削除対象）と1日前（保持対象）を保存
-      final old = DateTime.now().subtract(const Duration(days: 8));
-      final recent = DateTime.now().subtract(const Duration(days: 1));
-      String fmt(DateTime d) =>
-          '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
       await storage.saveDailyStepRecord(
-        DailyStepRecord(date: fmt(old), totalSteps: 100, totalEnergyWh: 1.0, lastSyncedSteps: 100),
+        const DailyStepRecord(
+            date: '2026-06-10',
+            totalSteps: 100,
+            totalEnergyWh: 1.0,
+            lastSyncedSteps: 100),
       );
       await storage.saveDailyStepRecord(
-        DailyStepRecord(date: fmt(recent), totalSteps: 200, totalEnergyWh: 2.0, lastSyncedSteps: 200),
+        const DailyStepRecord(
+            date: '2026-06-12',
+            totalSteps: 300,
+            totalEnergyWh: 3.0,
+            lastSyncedSteps: 300),
+      );
+      await storage.saveDailyStepRecord(
+        const DailyStepRecord(
+            date: '2026-06-11',
+            totalSteps: 200,
+            totalEnergyWh: 2.0,
+            lastSyncedSteps: 200),
       );
 
-      await storage.pruneOldDailyRecords(keepDays: 7);
+      final records = storage.loadAllDailyRecords();
 
-      expect(storage.loadDailyStepRecord(fmt(old)).totalSteps, 0);
-      expect(storage.loadDailyStepRecord(fmt(recent)).totalSteps, 200);
+      expect(records.map((r) => r.date).toList(),
+          ['2026-06-12', '2026-06-11', '2026-06-10']);
+    });
+
+    test('deleteDailyRecord: 指定日の記録だけ削除される', () async {
+      final storage = LocalStorage(await SharedPreferences.getInstance());
+      await storage.saveDailyStepRecord(
+        const DailyStepRecord(
+            date: '2026-06-10',
+            totalSteps: 100,
+            totalEnergyWh: 1.0,
+            lastSyncedSteps: 100),
+      );
+      await storage.saveDailyStepRecord(
+        const DailyStepRecord(
+            date: '2026-06-11',
+            totalSteps: 200,
+            totalEnergyWh: 2.0,
+            lastSyncedSteps: 200),
+      );
+
+      await storage.deleteDailyRecord('2026-06-10');
+
+      expect(storage.loadDailyStepRecord('2026-06-10').totalSteps, 0);
+      expect(storage.loadDailyStepRecord('2026-06-11').totalSteps, 200);
+    });
+
+    test('clearAllDailyRecords: 全ての記録が削除される', () async {
+      final storage = LocalStorage(await SharedPreferences.getInstance());
+      await storage.saveDailyStepRecord(
+        const DailyStepRecord(
+            date: '2026-06-10',
+            totalSteps: 100,
+            totalEnergyWh: 1.0,
+            lastSyncedSteps: 100),
+      );
+      await storage.saveDailyStepRecord(
+        const DailyStepRecord(
+            date: '2026-06-11',
+            totalSteps: 200,
+            totalEnergyWh: 2.0,
+            lastSyncedSteps: 200),
+      );
+
+      await storage.clearAllDailyRecords();
+
+      expect(storage.loadAllDailyRecords(), isEmpty);
     });
   });
 }

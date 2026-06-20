@@ -3,9 +3,10 @@ class GameConstants {
   GameConstants._();
 
   /// 発電変換係数（歩数→エネルギー変換の基準倍率）
-  static const double energyCoefficient = 0.01;
-  static const double minEnergyCoefficient = 0.001;
-  static const double maxEnergyCoefficient = 0.1;
+  /// 基準体重・速度では 1歩 = 1Wh、1万歩で蓄電池1個分(初期容量10000Wh)を満たす。
+  static const double energyCoefficient = 1.0;
+  static const double minEnergyCoefficient = 0.1;
+  static const double maxEnergyCoefficient = 5.0;
 
   /// 体重の基準値 (kg)
   static const double referenceWeightKg = 70.0;
@@ -26,12 +27,15 @@ class GameConstants {
   /// アプリのバージョン文字列（pubspec.yaml の version と合わせて管理）
   static const String appVersion = '0.9';
 
-  /// 1日のエネルギー上限 (Wh)
-  static const double dailyEnergyCapWh = 5000.0;
+  /// 1日のエネルギー上限 (Wh)。蓄電池の初期容量(1万歩分)と一致させる。
+  static const double dailyEnergyCapWh = 10000.0;
 
   /// 蓄電池 初期容量 (Wh)
   static const double initialBatteryCapacityWh = 10000.0;
 
   /// 蓄電池 初期蓄積量 (Wh)
   static const double initialBatteryStoredWh = 0.0;
+
+  /// 草原グリッドの一辺のマス数
+  static const int townGridSize = 5;
 }

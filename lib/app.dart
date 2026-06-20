@@ -54,12 +54,97 @@ class _PedometerTownAppState extends State<PedometerTownApp> {
       ],
       child: MaterialApp(
         title: '万歩計タウン',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-          useMaterial3: true,
-        ),
+        theme: _buildExpressiveTheme(),
         home: const HomeScreen(),
       ),
     );
   }
+}
+
+/// Material 3 Expressive 流テーマ
+/// （強めの角丸・tonal カラー・太めのタイポグラフィ）
+/// 参考: https://m3.material.io/blog/building-with-m3-expressive
+ThemeData _buildExpressiveTheme() {
+  final colorScheme = ColorScheme.fromSeed(
+    seedColor: Colors.amber,
+    brightness: Brightness.light,
+  );
+
+  return ThemeData(
+    colorScheme: colorScheme,
+    useMaterial3: true,
+    scaffoldBackgroundColor: colorScheme.surface,
+    appBarTheme: AppBarTheme(
+      backgroundColor: colorScheme.surface,
+      surfaceTintColor: Colors.transparent,
+      titleTextStyle: TextStyle(
+        fontSize: 28,
+        fontWeight: FontWeight.w700,
+        color: colorScheme.onSurface,
+      ),
+    ),
+    cardTheme: CardThemeData(
+      elevation: 0,
+      color: colorScheme.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+      ),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        minimumSize: const Size.fromHeight(56),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+        ),
+        textStyle: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(48),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        elevation: 0,
+        minimumSize: const Size.fromHeight(48),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+      ),
+    ),
+    sliderTheme: SliderThemeData(
+      trackHeight: 8,
+      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: colorScheme.primary,
+      linearTrackColor: colorScheme.surfaceContainerHighest,
+      linearMinHeight: 16,
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: colorScheme.surfaceContainerHighest,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+    ),
+    listTileTheme: ListTileThemeData(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+    ),
+    textTheme: const TextTheme(
+      headlineMedium: TextStyle(fontWeight: FontWeight.w700),
+      titleLarge: TextStyle(fontWeight: FontWeight.w700),
+      titleMedium: TextStyle(fontWeight: FontWeight.w600),
+    ),
+  );
 }

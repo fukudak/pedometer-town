@@ -45,7 +45,7 @@ void main() {
   });
 
   group('EnergyProvider.syncStepsFromHealth', () {
-    test('複数回の同期で1日の上限(5000Wh)を超えて加算されない', () async {
+    test('複数回の同期で1日の上限(10000Wh)を超えて加算されない', () async {
       var now = DateTime(2026, 6, 16, 8);
       final provider = EnergyProvider(
         storage,
@@ -54,27 +54,27 @@ void main() {
         now: () => now,
       );
 
-      // 1回目: 300,000歩 → 3000Wh
-      healthService.totalSteps = 300000;
+      // 1回目: 6,000歩 → 6000Wh
+      healthService.totalSteps = 6000;
       await provider.syncStepsFromHealth();
-      expect(provider.today.totalEnergyWh, closeTo(3000.0, 1e-9));
-      expect(provider.battery.storedWh, closeTo(3000.0, 1e-9));
+      expect(provider.today.totalEnergyWh, closeTo(6000.0, 1e-9));
+      expect(provider.battery.storedWh, closeTo(6000.0, 1e-9));
 
-      // 2回目: +200,000歩 → +2000Wh (合計5000Whで上限)
+      // 2回目: +4,000歩 → +4000Wh (合計10000Whで上限)
       now = now.add(const Duration(hours: 1));
-      healthService.totalSteps = 500000;
+      healthService.totalSteps = 10000;
       await provider.syncStepsFromHealth();
-      expect(provider.today.totalEnergyWh, closeTo(5000.0, 1e-9));
-      expect(provider.battery.storedWh, closeTo(5000.0, 1e-9));
+      expect(provider.today.totalEnergyWh, closeTo(10000.0, 1e-9));
+      expect(provider.battery.storedWh, closeTo(10000.0, 1e-9));
 
-      // 3回目: +100,000歩 → 上限到達済みのため加算なし
+      // 3回目: +2,000歩 → 上限到達済みのため加算なし
       now = now.add(const Duration(hours: 1));
-      healthService.totalSteps = 600000;
+      healthService.totalSteps = 12000;
       await provider.syncStepsFromHealth();
-      expect(provider.today.totalEnergyWh, closeTo(5000.0, 1e-9));
-      expect(provider.battery.storedWh, closeTo(5000.0, 1e-9));
+      expect(provider.today.totalEnergyWh, closeTo(10000.0, 1e-9));
+      expect(provider.battery.storedWh, closeTo(10000.0, 1e-9));
       // 3回目もエネルギーは加算されないが歩数差分自体は積算される
-      expect(provider.today.totalSteps, 600000);
+      expect(provider.today.totalSteps, 12000);
     });
 
     test('日付が変わると当日の記録がリセットされる', () async {
@@ -90,7 +90,7 @@ void main() {
       await provider.syncStepsFromHealth();
       expect(provider.today.date, '2026-06-16');
       expect(provider.today.totalSteps, 1000);
-      expect(provider.today.totalEnergyWh, closeTo(10.0, 1e-9));
+      expect(provider.today.totalEnergyWh, closeTo(1000.0, 1e-9));
 
       // 日付が翌日に変わってから同期
       now = DateTime(2026, 6, 17, 0, 5);
@@ -100,7 +100,7 @@ void main() {
       expect(provider.today.date, '2026-06-17');
       // 新しい日のレコードなので歩数差分は1200歩そのもの
       expect(provider.today.totalSteps, 1200);
-      expect(provider.today.totalEnergyWh, closeTo(12.0, 1e-9));
+      expect(provider.today.totalEnergyWh, closeTo(1200.0, 1e-9));
     });
 
     test('Health取得に失敗するとHealthServiceExceptionが伝播する', () async {
@@ -127,13 +127,13 @@ void main() {
       await provider.applyBatteryState(
         const BatteryState(storedWh: 800, capacityWh: 10000),
       );
-      final built = await townProvider.buildBuilding(BuildingType.park);
+      final built = await townProvider.buildBuilding(BuildingType.park, 0, 0);
       expect(built, isTrue);
 
-      // 1000歩 @70kg/5km/h, 係数0.01×1.1=0.011 → 11.0Wh
+      // 1000歩 @70kg/5km/h, 係数1.0×1.1=1.1 → 1100.0Wh
       healthService.totalSteps = 1000;
       await provider.syncStepsFromHealth();
-      expect(provider.today.totalEnergyWh, closeTo(11.0, 1e-9));
+      expect(provider.today.totalEnergyWh, closeTo(1100.0, 1e-9));
     });
   });
 

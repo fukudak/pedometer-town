@@ -128,98 +128,156 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: const Text('設定')),
-      body: Padding(
+      body: ListView(
         padding: const EdgeInsets.all(16.0),
+        children: [
+          _SettingsSection(
+            icon: Icons.directions_walk,
+            title: '身体情報',
+            children: [
+              _LabeledField(
+                label: '体重',
+                unit: 'kg',
+                controller: _weightController,
+                focusNode: _weightFocus,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: false),
+                onSubmitted: (_) => _applyWeightText(),
+              ),
+              Slider(
+                value: _weightKg,
+                min: GameConstants.minWeightKg,
+                max: GameConstants.maxWeightKg,
+                divisions:
+                    (GameConstants.maxWeightKg - GameConstants.minWeightKg)
+                        .toInt(),
+                label: _weightKg.toStringAsFixed(0),
+                onChanged: (value) {
+                  setState(() => _weightKg = value);
+                  _weightController.text = value.toStringAsFixed(0);
+                },
+              ),
+              const SizedBox(height: 12),
+              _LabeledField(
+                label: '歩行速度',
+                unit: 'km/h',
+                controller: _speedController,
+                focusNode: _speedFocus,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                onSubmitted: (_) => _applySpeedText(),
+              ),
+              Slider(
+                value: _speedKmh,
+                min: GameConstants.minSpeedKmh,
+                max: GameConstants.maxSpeedKmh,
+                divisions:
+                    ((GameConstants.maxSpeedKmh - GameConstants.minSpeedKmh) *
+                            10)
+                        .toInt(),
+                label: _speedKmh.toStringAsFixed(1),
+                onChanged: (value) {
+                  setState(() => _speedKmh = value);
+                  _speedController.text = value.toStringAsFixed(1);
+                },
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  onPressed: _openMeasurement,
+                  icon: const Icon(Icons.speed, size: 18),
+                  label: const Text('歩行速度を計測する'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _SettingsSection(
+            icon: Icons.bolt,
+            title: '発電設定',
+            children: [
+              _LabeledField(
+                label: '発電変換係数',
+                unit: '',
+                controller: _coefficientController,
+                focusNode: _coefficientFocus,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                onSubmitted: (_) => _applyCoefficientText(),
+              ),
+              Slider(
+                value: _coefficient,
+                min: GameConstants.minEnergyCoefficient,
+                max: GameConstants.maxEnergyCoefficient,
+                divisions: 99,
+                label: _coefficient.toStringAsFixed(4),
+                onChanged: (value) {
+                  setState(() => _coefficient = value);
+                  _coefficientController.text = value.toStringAsFixed(4);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: _save,
+            child: const Text('保存'),
+          ),
+          const SizedBox(height: 24),
+          Center(
+            child: Text(
+              'バージョン ${GameConstants.appVersion}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.outline,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsSection extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final List<Widget> children;
+
+  const _SettingsSection({
+    required this.icon,
+    required this.title,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _LabeledField(
-              label: '体重',
-              unit: 'kg',
-              controller: _weightController,
-              focusNode: _weightFocus,
-              keyboardType: const TextInputType.numberWithOptions(decimal: false),
-              onSubmitted: (_) => _applyWeightText(),
-            ),
-            Slider(
-              value: _weightKg,
-              min: GameConstants.minWeightKg,
-              max: GameConstants.maxWeightKg,
-              divisions: (GameConstants.maxWeightKg - GameConstants.minWeightKg)
-                  .toInt(),
-              label: _weightKg.toStringAsFixed(0),
-              onChanged: (value) {
-                setState(() => _weightKg = value);
-                _weightController.text = value.toStringAsFixed(0);
-              },
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: colorScheme.secondaryContainer,
+                  child:
+                      Icon(icon, size: 18, color: colorScheme.onSecondaryContainer),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
             ),
             const SizedBox(height: 16),
-            _LabeledField(
-              label: '歩行速度',
-              unit: 'km/h',
-              controller: _speedController,
-              focusNode: _speedFocus,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onSubmitted: (_) => _applySpeedText(),
-            ),
-            Slider(
-              value: _speedKmh,
-              min: GameConstants.minSpeedKmh,
-              max: GameConstants.maxSpeedKmh,
-              divisions: ((GameConstants.maxSpeedKmh - GameConstants.minSpeedKmh) *
-                      10)
-                  .toInt(),
-              label: _speedKmh.toStringAsFixed(1),
-              onChanged: (value) {
-                setState(() => _speedKmh = value);
-                _speedController.text = value.toStringAsFixed(1);
-              },
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: _openMeasurement,
-                icon: const Icon(Icons.speed, size: 18),
-                label: const Text('歩行速度を計測する'),
-              ),
-            ),
-            const SizedBox(height: 16),
-            _LabeledField(
-              label: '発電変換係数',
-              unit: '',
-              controller: _coefficientController,
-              focusNode: _coefficientFocus,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onSubmitted: (_) => _applyCoefficientText(),
-            ),
-            Slider(
-              value: _coefficient,
-              min: GameConstants.minEnergyCoefficient,
-              max: GameConstants.maxEnergyCoefficient,
-              divisions: 99,
-              label: _coefficient.toStringAsFixed(4),
-              onChanged: (value) {
-                setState(() => _coefficient = value);
-                _coefficientController.text = value.toStringAsFixed(4);
-              },
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _save,
-              child: const Text('保存'),
-            ),
-            const Spacer(),
-            Center(
-              child: Text(
-                'バージョン ${GameConstants.appVersion}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
-              ),
-            ),
-            const SizedBox(height: 8),
+            ...children,
           ],
         ),
       ),
