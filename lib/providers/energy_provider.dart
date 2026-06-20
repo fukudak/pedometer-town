@@ -19,6 +19,8 @@ class EnergyProvider extends ChangeNotifier {
 
   BatteryState _battery;
   DailyStepRecord _today;
+  DateTime? _lastSyncedAt;
+  double _lifetimeEnergyWh;
 
   EnergyProvider(
     this._storage,
@@ -31,7 +33,9 @@ class EnergyProvider extends ChangeNotifier {
             coefficientSupplier ?? (() => GameConstants.energyCoefficient),
         _battery = _storage.loadBatteryState(_storage.loadTownState().buildings),
         _today = _storage
-            .loadDailyStepRecord(_dateKey((now ?? DateTime.now)()));
+            .loadDailyStepRecord(_dateKey((now ?? DateTime.now)())),
+        _lastSyncedAt = _storage.loadLastSyncedAt(),
+        _lifetimeEnergyWh = _storage.loadLifetimeEnergyWh();
 
   void setCoefficientSupplier(double Function() supplier) {
     _coefficientSupplier = supplier;
@@ -39,6 +43,8 @@ class EnergyProvider extends ChangeNotifier {
 
   BatteryState get battery => _battery;
   DailyStepRecord get today => _today;
+  DateTime? get lastSyncedAt => _lastSyncedAt;
+  double get lifetimeEnergyWh => _lifetimeEnergyWh;
 
   static String _dateKey(DateTime date) {
     final month = date.month.toString().padLeft(2, '0');
@@ -53,7 +59,6 @@ class EnergyProvider extends ChangeNotifier {
     final todayKey = _dateKey(_now());
     if (_today.date != todayKey) {
       _today = DailyStepRecord.empty(todayKey);
-      await _storage.pruneOldDailyRecords(keepDays: 7);
     }
 
     final totalSteps = await _healthService.getTodaySteps();
@@ -64,6 +69,7 @@ class EnergyProvider extends ChangeNotifier {
 
     if (effectiveDelta == 0) {
       _today = _today.copyWith(lastSyncedSteps: totalSteps);
+      _lastSyncedAt = _now();
       await _persist();
       notifyListeners();
       return;
@@ -87,6 +93,8 @@ class EnergyProvider extends ChangeNotifier {
       totalEnergyWh: _today.totalEnergyWh + addableEnergyWh,
       lastSyncedSteps: totalSteps,
     );
+    _lifetimeEnergyWh += addableEnergyWh;
+    _lastSyncedAt = _now();
 
     await _persist();
     notifyListeners();
@@ -99,16 +107,41 @@ class EnergyProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 保存済みの全日次記録を日付の新しい順に返す（無期限保持）。
+  List<DailyStepRecord> loadHistory() => _storage.loadAllDailyRecords();
+
+  /// 指定日の日次記録を削除する。削除対象が今日の記録なら表示も空にする。
+  Future<void> deleteHistoryRecord(String date) async {
+    await _storage.deleteDailyRecord(date);
+    if (_today.date == date) {
+      _today = DailyStepRecord.empty(date);
+    }
+    notifyListeners();
+  }
+
+  /// 全ての日次記録を削除する。
+  Future<void> clearHistory() async {
+    await _storage.clearAllDailyRecords();
+    _today = DailyStepRecord.empty(_today.date);
+    notifyListeners();
+  }
+
   /// 永続化済みの値で表示を更新する。
   void refreshDisplay() {
     final town = _storage.loadTownState();
     _battery = _storage.loadBatteryState(town.buildings);
     _today = _storage.loadDailyStepRecord(_dateKey(_now()));
+    _lastSyncedAt = _storage.loadLastSyncedAt();
+    _lifetimeEnergyWh = _storage.loadLifetimeEnergyWh();
     notifyListeners();
   }
 
   Future<void> _persist() async {
     await _storage.saveBatteryState(_battery);
     await _storage.saveDailyStepRecord(_today);
+    if (_lastSyncedAt != null) {
+      await _storage.saveLastSyncedAt(_lastSyncedAt!);
+    }
+    await _storage.saveLifetimeEnergyWh(_lifetimeEnergyWh);
   }
 }

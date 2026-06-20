@@ -22,6 +22,8 @@ class LocalStorage {
   static const _keyBatteryStored = 'battery_stored_wh';
   static const _keyTownBuildings = 'town_buildings';
   static const _dailyRecordPrefix = 'daily_record_';
+  static const _keyLastSyncedAt = 'last_synced_at';
+  static const _keyLifetimeEnergyWh = 'lifetime_energy_wh';
 
   PlayerSettings loadPlayerSettings() {
     return PlayerSettings(
@@ -83,17 +85,47 @@ class LocalStorage {
     );
   }
 
-  /// keepDays 日より古い日次記録を削除する。
-  Future<void> pruneOldDailyRecords({int keepDays = 30}) async {
-    final cutoff = DateTime.now().subtract(Duration(days: keepDays));
-    final keys = _prefs
+  /// 保存済みの全日次記録を日付の新しい順に返す。
+  List<DailyStepRecord> loadAllDailyRecords() {
+    final records = _prefs
         .getKeys()
         .where((k) => k.startsWith(_dailyRecordPrefix))
+        .map((k) => _prefs.getString(k))
+        .whereType<String>()
+        .map((json) =>
+            DailyStepRecord.fromJson(jsonDecode(json) as Map<String, dynamic>))
         .toList();
+    records.sort((a, b) => b.date.compareTo(a.date));
+    return records;
+  }
+
+  /// 指定日の日次記録を削除する。
+  Future<void> deleteDailyRecord(String date) async {
+    await _prefs.remove('$_dailyRecordPrefix$date');
+  }
+
+  /// 全ての日次記録を削除する。
+  Future<void> clearAllDailyRecords() async {
+    final keys =
+        _prefs.getKeys().where((k) => k.startsWith(_dailyRecordPrefix));
     for (final key in keys) {
-      final dateStr = key.substring(_dailyRecordPrefix.length);
-      final date = DateTime.tryParse(dateStr);
-      if (date != null && date.isBefore(cutoff)) await _prefs.remove(key);
+      await _prefs.remove(key);
     }
+  }
+
+  DateTime? loadLastSyncedAt() {
+    final iso = _prefs.getString(_keyLastSyncedAt);
+    return iso == null ? null : DateTime.tryParse(iso);
+  }
+
+  Future<void> saveLastSyncedAt(DateTime time) async {
+    await _prefs.setString(_keyLastSyncedAt, time.toIso8601String());
+  }
+
+  /// 蓄電池の消費に関わらず、生涯で発電した総エネルギー量 (Wh)。
+  double loadLifetimeEnergyWh() => _prefs.getDouble(_keyLifetimeEnergyWh) ?? 0.0;
+
+  Future<void> saveLifetimeEnergyWh(double wh) async {
+    await _prefs.setDouble(_keyLifetimeEnergyWh, wh);
   }
 }
