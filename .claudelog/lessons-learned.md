@@ -133,3 +133,8 @@ try {
 - `test/town_provider_test.dart` に範囲外座標での `buildBuilding` 失敗テストを1件追加。
 - `flutter analyze` → "No issues found!"; `flutter test` → 59 passed（53 baseline + 6 新規）。
 - 既存の唯一の呼び出し元（`TownScreen`）は GridView の index から座標を計算するため動作に変化なし。
+
+## Round 3 — Phase 2 — HistoryScreen の削除失敗を確実に反映する (M2)
+- `confirmDismiss` 内でダイアログが `true` を返した直後に `await EnergyProvider.deleteHistoryRecord` を実行し、完了後に `true` を返すよう変更。`onDismissed` は削除（処理を `confirmDismiss` に統合）。
+- 1回目の `flutter analyze` で `use_build_context_synchronously`（`history_screen.dart:97`）が検出された。`await` の後に `context` を使う前に `context.mounted` チェックを追加して解消。教訓: confirmDismiss を async 化して await を挟む場合、ダイアログ完了後の `context.read` 呼び出し前に必ず `mounted` チェックが必要（StatelessWidget でも `BuildContext` 自体の mounted は有効）。
+- `flutter analyze` → "No issues found!"; `flutter test` → 59 passed（件数変化なし、既存テストの動作確認のみ）。

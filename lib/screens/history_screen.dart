@@ -74,25 +74,31 @@ class HistoryScreen extends StatelessWidget {
                     child: Icon(Icons.delete,
                         color: colorScheme.onErrorContainer),
                   ),
-                  confirmDismiss: (_) => showDialog<bool>(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: const Text('この記録を削除'),
-                      content: Text('${_formatDate(record.date)} の記録を削除します。'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(false),
-                          child: const Text('キャンセル'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(true),
-                          child: const Text('削除'),
-                        ),
-                      ],
-                    ),
-                  ),
-                  onDismissed: (_) {
-                    context.read<EnergyProvider>().deleteHistoryRecord(record.date);
+                  confirmDismiss: (_) async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: const Text('この記録を削除'),
+                        content:
+                            Text('${_formatDate(record.date)} の記録を削除します。'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: const Text('キャンセル'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(true),
+                            child: const Text('削除'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed != true) return false;
+                    if (!context.mounted) return false;
+                    await context.read<EnergyProvider>().deleteHistoryRecord(
+                          record.date,
+                        );
+                    return true;
                   },
                   child: Card(
                     margin: const EdgeInsets.only(bottom: 8),
