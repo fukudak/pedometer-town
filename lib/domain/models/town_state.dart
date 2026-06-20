@@ -19,6 +19,14 @@ class TownState {
     return copyWith(buildings: [...buildings, building]);
   }
 
+  /// 指定座標に建設済みの建物があれば返す。
+  Building? buildingAt(int x, int y) {
+    for (final b in buildings) {
+      if (b.x == x && b.y == y) return b;
+    }
+    return null;
+  }
+
   List<Map<String, dynamic>> toJson() =>
       buildings.map((b) => b.toJson()).toList();
 

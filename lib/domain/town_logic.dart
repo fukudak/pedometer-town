@@ -34,8 +34,20 @@ class TownLogic {
   static double costOf(BuildingType type) =>
       BuildingDefinitions.of(type).costWh;
 
-  /// 現在の蓄電池残量で建設可能かどうか
-  static bool canBuild(BatteryState battery, BuildingType type) {
+  /// 指定座標に既に建物があるかどうか
+  static bool isOccupied(List<Building> buildings, int x, int y) {
+    return buildings.any((b) => b.x == x && b.y == y);
+  }
+
+  /// 指定座標が空いていて、かつ蓄電池残量で建設可能かどうか
+  static bool canBuild(
+    BatteryState battery,
+    BuildingType type,
+    List<Building> buildings,
+    int x,
+    int y,
+  ) {
+    if (isOccupied(buildings, x, y)) return false;
     return battery.storedWh >= costOf(type);
   }
 }

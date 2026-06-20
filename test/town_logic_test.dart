@@ -13,15 +13,15 @@ void main() {
 
     test('発電所1棟につき+2000Wh', () {
       final result = TownLogic.effectiveCapacity(10000, const [
-        Building(type: BuildingType.powerPlant),
+        Building(type: BuildingType.powerPlant, x: 0, y: 0),
       ]);
       expect(result, 12000);
     });
 
     test('発電所2棟なら+4000Wh', () {
       final result = TownLogic.effectiveCapacity(10000, const [
-        Building(type: BuildingType.powerPlant),
-        Building(type: BuildingType.powerPlant),
+        Building(type: BuildingType.powerPlant, x: 0, y: 0),
+        Building(type: BuildingType.powerPlant, x: 0, y: 0),
       ]);
       expect(result, 14000);
     });
@@ -35,15 +35,15 @@ void main() {
 
     test('公園1棟につき×1.1', () {
       final result = TownLogic.effectiveCoefficient(0.01, const [
-        Building(type: BuildingType.park),
+        Building(type: BuildingType.park, x: 0, y: 0),
       ]);
       expect(result, closeTo(0.011, 1e-12));
     });
 
     test('公園2棟なら×1.1×1.1', () {
       final result = TownLogic.effectiveCoefficient(0.01, const [
-        Building(type: BuildingType.park),
-        Building(type: BuildingType.park),
+        Building(type: BuildingType.park, x: 0, y: 0),
+        Building(type: BuildingType.park, x: 1, y: 0),
       ]);
       expect(result, closeTo(0.01 * 1.1 * 1.1, 1e-12));
     });
@@ -64,9 +64,12 @@ void main() {
   });
 
   group('TownLogic.canBuild', () {
-    test('残量がコスト以上なら建設可能', () {
+    test('残量がコスト以上かつ座標が空いていれば建設可能', () {
       const battery = BatteryState(storedWh: 500, capacityWh: 10000);
-      expect(TownLogic.canBuild(battery, BuildingType.house), isTrue);
+      expect(
+        TownLogic.canBuild(battery, BuildingType.house, const [], 0, 0),
+        isTrue,
+      );
     });
 
     test('残量がコスト未満なら建設不可', () {
@@ -74,7 +77,27 @@ void main() {
         storedWh: 499,
         capacityWh: GameConstants.initialBatteryCapacityWh,
       );
-      expect(TownLogic.canBuild(battery, BuildingType.house), isFalse);
+      expect(
+        TownLogic.canBuild(battery, BuildingType.house, const [], 0, 0),
+        isFalse,
+      );
+    });
+
+    test('座標が既に埋まっていれば残量があっても建設不可', () {
+      const battery = BatteryState(storedWh: 500, capacityWh: 10000);
+      const buildings = [Building(type: BuildingType.house, x: 0, y: 0)];
+      expect(
+        TownLogic.canBuild(battery, BuildingType.house, buildings, 0, 0),
+        isFalse,
+      );
+    });
+  });
+
+  group('TownLogic.isOccupied', () {
+    test('座標に建物があれば true', () {
+      const buildings = [Building(type: BuildingType.house, x: 2, y: 3)];
+      expect(TownLogic.isOccupied(buildings, 2, 3), isTrue);
+      expect(TownLogic.isOccupied(buildings, 0, 0), isFalse);
     });
   });
 }

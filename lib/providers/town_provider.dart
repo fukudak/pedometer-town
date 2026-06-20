@@ -33,20 +33,35 @@ class TownProvider extends ChangeNotifier {
         _town.buildings,
       );
 
-  /// 指定した建物を建設できるかどうか
-  bool canBuild(BuildingType type) {
-    return TownLogic.canBuild(_energyProvider.battery, type);
+  /// エネルギー残量だけで建設可否を判定する（座標の空き状況は見ない）。
+  bool canAfford(BuildingType type) {
+    return _energyProvider.battery.storedWh >= TownLogic.costOf(type);
   }
 
-  /// 建物を建設する。エネルギー不足の場合は false を返す。
-  Future<bool> buildBuilding(BuildingType type) async {
+  /// 指定座標に指定した建物を建設できるかどうか
+  bool canBuild(BuildingType type, int x, int y) {
+    return TownLogic.canBuild(
+      _energyProvider.battery,
+      type,
+      _town.buildings,
+      x,
+      y,
+    );
+  }
+
+  /// 指定座標に建物を建設する。座標が空いていない、またはエネルギー不足の場合は false を返す。
+  Future<bool> buildBuilding(BuildingType type, int x, int y) async {
+    if (TownLogic.isOccupied(_town.buildings, x, y)) {
+      return false;
+    }
+
     final cost = TownLogic.costOf(type);
     final result = _energyProvider.battery.consumeEnergy(cost);
     if (!result.success) {
       return false;
     }
 
-    _town = _town.addBuilding(Building(type: type));
+    _town = _town.addBuilding(Building(type: type, x: x, y: y));
     final newCapacity = TownLogic.effectiveCapacity(
       GameConstants.initialBatteryCapacityWh,
       _town.buildings,

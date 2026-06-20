@@ -29,7 +29,8 @@ void main() {
         const BatteryState(storedWh: 1000, capacityWh: 10000),
       );
 
-      final result = await townProvider.buildBuilding(BuildingType.powerPlant);
+      final result =
+          await townProvider.buildBuilding(BuildingType.powerPlant, 0, 0);
 
       expect(result, isTrue);
       expect(energyProvider.battery.storedWh, 0);
@@ -43,27 +44,40 @@ void main() {
         const BatteryState(storedWh: 100, capacityWh: 10000),
       );
 
-      final result = await townProvider.buildBuilding(BuildingType.house);
+      final result = await townProvider.buildBuilding(BuildingType.house, 0, 0);
 
       expect(result, isFalse);
       expect(energyProvider.battery.storedWh, 100);
       expect(townProvider.town.buildings, isEmpty);
     });
+
+    test('座標が既に埋まっている場合は建設に失敗する', () async {
+      await energyProvider.applyBatteryState(
+        const BatteryState(storedWh: 2000, capacityWh: 10000),
+      );
+
+      final first = await townProvider.buildBuilding(BuildingType.house, 1, 1);
+      final second = await townProvider.buildBuilding(BuildingType.house, 1, 1);
+
+      expect(first, isTrue);
+      expect(second, isFalse);
+      expect(townProvider.town.buildings.length, 1);
+    });
   });
 
   group('TownProvider.canBuild', () {
-    test('残量がコスト以上なら建設可能と判定する', () async {
+    test('残量がコスト以上かつ座標が空いていれば建設可能と判定する', () async {
       await energyProvider.applyBatteryState(
         const BatteryState(storedWh: 500, capacityWh: 10000),
       );
-      expect(townProvider.canBuild(BuildingType.house), isTrue);
+      expect(townProvider.canBuild(BuildingType.house, 0, 0), isTrue);
     });
 
     test('残量がコスト未満なら建設不可と判定する', () async {
       await energyProvider.applyBatteryState(
         const BatteryState(storedWh: 100, capacityWh: 10000),
       );
-      expect(townProvider.canBuild(BuildingType.house), isFalse);
+      expect(townProvider.canBuild(BuildingType.house, 0, 0), isFalse);
     });
   });
 }
