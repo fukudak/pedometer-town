@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 
 import '../data/local_storage.dart';
 import '../domain/models/daily_step_record.dart';
+import '../domain/models/full_battery_event.dart';
+import '../domain/models/rocket_launch_event.dart';
 import 'energy_provider.dart';
 
 /// 日次記録（歩数・エネルギー履歴）の管理
@@ -13,6 +15,14 @@ class HistoryProvider extends ChangeNotifier {
 
   /// 保存済みの全日次記録を日付の新しい順に返す（無期限保持）。
   List<DailyStepRecord> loadHistory() => _storage.loadAllDailyRecords();
+
+  /// 蓄電池が満タンになった記録を、新しい順に返す。
+  List<FullBatteryEvent> loadFullBatteryEvents() =>
+      _storage.loadFullBatteryEvents().reversed.toList();
+
+  /// ロケットを発射した記録を、新しい順に返す。
+  List<RocketLaunchEvent> loadRocketLaunchEvents() =>
+      _storage.loadRocketLaunchEvents().reversed.toList();
 
   /// 指定日の日次記録を削除する。削除対象が今日の記録なら表示も空にする。
   Future<void> deleteHistoryRecord(String date) async {

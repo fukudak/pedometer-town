@@ -60,19 +60,19 @@ void main() {
       expect(provider.today.totalEnergyWh, closeTo(6000.0, 1e-9));
       expect(provider.battery.storedWh, closeTo(6000.0, 1e-9));
 
-      // 2回目: +4,000歩 → +4000Wh (合計10000Whで上限)
+      // 2回目: +4,000歩 → +4000Wh (合計10000Whで満タン、蓄電池は0に折り返る)
       now = now.add(const Duration(hours: 1));
       healthService.totalSteps = 10000;
       await provider.syncStepsFromHealth();
       expect(provider.today.totalEnergyWh, closeTo(10000.0, 1e-9));
-      expect(provider.battery.storedWh, closeTo(10000.0, 1e-9));
+      expect(provider.battery.storedWh, closeTo(0.0, 1e-9));
 
-      // 3回目: +2,000歩 → 上限到達済みのため加算なし
+      // 3回目: +2,000歩 → 1日のエネルギー上限到達済みのため加算なし
       now = now.add(const Duration(hours: 1));
       healthService.totalSteps = 12000;
       await provider.syncStepsFromHealth();
       expect(provider.today.totalEnergyWh, closeTo(10000.0, 1e-9));
-      expect(provider.battery.storedWh, closeTo(10000.0, 1e-9));
+      expect(provider.battery.storedWh, closeTo(0.0, 1e-9));
       // 3回目もエネルギーは加算されないが歩数差分自体は積算される
       expect(provider.today.totalSteps, 12000);
     });
@@ -134,6 +134,19 @@ void main() {
       healthService.totalSteps = 1000;
       await provider.syncStepsFromHealth();
       expect(provider.today.totalEnergyWh, closeTo(1100.0, 1e-9));
+    });
+
+    test('蓄電池が満タンになると履歴に記録され、蓄電池は0に折り返る', () async {
+      final provider = EnergyProvider(storage, healthService, settingsProvider);
+
+      // 10000歩 @70kg/5km/h, 係数1.0 → 10000.0Wh（蓄電池容量と一致）
+      healthService.totalSteps = 10000;
+      await provider.syncStepsFromHealth();
+
+      expect(provider.battery.storedWh, closeTo(0.0, 1e-9));
+      final events = storage.loadFullBatteryEvents();
+      expect(events.length, 1);
+      expect(events.first.number, 1);
     });
   });
 

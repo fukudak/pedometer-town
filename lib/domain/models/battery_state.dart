@@ -12,10 +12,19 @@ class BatteryState {
         capacityWh: GameConstants.initialBatteryCapacityWh,
       );
 
-  /// エネルギーを加算する。容量を超える分はロストする。
-  BatteryState addEnergy(double amount) {
-    final newStored = (storedWh + amount).clamp(0.0, capacityWh);
-    return copyWith(storedWh: newStored);
+  /// エネルギーを加算する。容量に達するたびに満タンとして折り返し、
+  /// 新たに何個満タンになったか（[BatteryAddResult.batteriesFilled]）を返す。
+  BatteryAddResult addEnergy(double amount) {
+    final total = storedWh + amount;
+    if (capacityWh <= 0 || total < capacityWh) {
+      return BatteryAddResult(state: copyWith(storedWh: total), batteriesFilled: 0);
+    }
+    final filled = (total / capacityWh).floor();
+    final remainder = total - filled * capacityWh;
+    return BatteryAddResult(
+      state: copyWith(storedWh: remainder),
+      batteriesFilled: filled,
+    );
   }
 
   /// エネルギーを消費する。不足時は失敗（成功フラグfalse・状態は変化なし）。
@@ -43,4 +52,12 @@ class BatteryConsumeResult {
   final BatteryState state;
 
   const BatteryConsumeResult({required this.success, required this.state});
+}
+
+/// [BatteryState.addEnergy] の結果
+class BatteryAddResult {
+  final BatteryState state;
+  final int batteriesFilled;
+
+  const BatteryAddResult({required this.state, required this.batteriesFilled});
 }

@@ -5,6 +5,7 @@ import '../data/local_storage.dart';
 import '../domain/energy_calculator.dart';
 import '../domain/models/battery_state.dart';
 import '../domain/models/daily_step_record.dart';
+import '../domain/models/full_battery_event.dart';
 import '../services/health_service.dart';
 import 'settings_provider.dart';
 
@@ -87,7 +88,8 @@ class EnergyProvider extends ChangeNotifier {
       alreadyEarnedTodayWh: _today.totalEnergyWh,
     );
 
-    _battery = _battery.addEnergy(addableEnergyWh);
+    final addResult = _battery.addEnergy(addableEnergyWh);
+    _battery = addResult.state;
     _today = _today.copyWith(
       totalSteps: _today.totalSteps + effectiveDelta,
       totalEnergyWh: _today.totalEnergyWh + addableEnergyWh,
@@ -96,8 +98,24 @@ class EnergyProvider extends ChangeNotifier {
     _lifetimeEnergyWh += addableEnergyWh;
     _lastSyncedAt = _now();
 
+    if (addResult.batteriesFilled > 0) {
+      await _recordFullBatteries(addResult.batteriesFilled);
+    }
+
     await _persist();
     notifyListeners();
+  }
+
+  /// 満タンになった蓄電池を履歴に記録する。
+  Future<void> _recordFullBatteries(int count) async {
+    final events = _storage.loadFullBatteryEvents();
+    final todayKey = _dateKey(_now());
+    final newEvents = [
+      ...events,
+      for (var i = 0; i < count; i++)
+        FullBatteryEvent(number: events.length + i + 1, date: todayKey),
+    ];
+    await _storage.saveFullBatteryEvents(newEvents);
   }
 
   /// 建物効果などにより変化した蓄電池状態を反映・永続化する。

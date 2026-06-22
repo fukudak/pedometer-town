@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../constants/building_definitions.dart';
-import '../constants/game_constants.dart';
 import '../constants/town_stages.dart';
 import '../domain/models/building.dart';
 import '../providers/town_provider.dart';
@@ -15,7 +14,24 @@ class TownScreen extends StatefulWidget {
 }
 
 class _TownScreenState extends State<TownScreen> {
-  BuildingType? _selectedType;
+  Future<void> _build(TownProvider townProvider, BuildingType type) async {
+    final pos = townProvider.nextAvailablePosition();
+    if (pos == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('これ以上建物を建てられません')),
+      );
+      return;
+    }
+
+    final ok = await townProvider.buildBuilding(type, pos.x, pos.y);
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('エネルギーが不足しています')),
+      );
+    }
+  }
 
   Future<void> _pickBuildingType(TownProvider townProvider) async {
     final type = await showModalBottomSheet<BuildingType>(
@@ -26,50 +42,7 @@ class _TownScreenState extends State<TownScreen> {
       builder: (_) => _BuildPickerSheet(townProvider: townProvider),
     );
     if (type == null || !mounted) return;
-    setState(() => _selectedType = type);
-  }
-
-  void _cancelPlacement() {
-    setState(() => _selectedType = null);
-  }
-
-  Future<void> _onTileTap(TownProvider townProvider, int x, int y) async {
-    final building = townProvider.town.buildingAt(x, y);
-    if (building != null) {
-      _showBuildingInfo(building);
-      return;
-    }
-
-    final type = _selectedType;
-    if (type == null) return;
-
-    final ok = await townProvider.buildBuilding(type, x, y);
-    if (!mounted) return;
-    if (ok) {
-      setState(() => _selectedType = null);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('エネルギーが不足しています')),
-      );
-    }
-  }
-
-  void _showBuildingInfo(Building building) {
-    final def = BuildingDefinitions.of(building.type);
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        icon: Icon(def.icon),
-        title: Text(def.displayName),
-        content: Text('座標: (${building.x}, ${building.y})'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('閉じる'),
-          ),
-        ],
-      ),
-    );
+    await _build(townProvider, type);
   }
 
   @override
@@ -77,132 +50,82 @@ class _TownScreenState extends State<TownScreen> {
     final townProvider = context.watch<TownProvider>();
     final town = townProvider.town;
     final colorScheme = Theme.of(context).colorScheme;
-    const gridSize = GameConstants.townGridSize;
-    final selectedType = _selectedType;
     final level = town.townLevel;
     final stage = TownStages.forLevel(level);
     final nextStage = TownStages.next(level);
+    final isFinalStage = TownStages.isAtFinalStage(level);
+    final launches = TownStages.rocketLaunchCount(level);
+
+    final buildingCounts = <BuildingType, int>{};
+    for (final b in town.buildings) {
+      buildingCounts[b.type] = (buildingCounts[b.type] ?? 0) + 1;
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('町')),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          Card(
-            color: colorScheme.tertiaryContainer,
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(stage.icon, color: colorScheme.onTertiaryContainer),
-                      const SizedBox(width: 12),
-                      Text(
-                        '${stage.name}（建物 $level 棟）',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: colorScheme.onTertiaryContainer,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (nextStage != null) ...[
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: LinearProgressIndicator(
-                        value: (level - stage.minLevel) /
-                            (nextStage.minLevel - stage.minLevel),
-                        backgroundColor: colorScheme.surface,
-                        minHeight: 8,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '次は「${nextStage.name}」まであと '
-                      '${nextStage.minLevel - level} 棟',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: colorScheme.onTertiaryContainer,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+          _HorizonScene(
+            stage: stage,
+            launches: launches,
+            isFinalStage: isFinalStage,
           ),
           const SizedBox(height: 16),
-          if (selectedType == null)
-            FilledButton.icon(
-              onPressed: () => _pickBuildingType(townProvider),
-              icon: const Icon(Icons.add_business),
-              label: const Text('建物を建てる'),
-            )
-          else
-            Card(
-              color: colorScheme.primaryContainer,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    Icon(BuildingDefinitions.of(selectedType).icon,
-                        color: colorScheme.onPrimaryContainer),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        '${BuildingDefinitions.of(selectedType).displayName} を配置する場所をタップ',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onPrimaryContainer,
-                        ),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: _cancelPlacement,
-                      child: const Text('キャンセル'),
-                    ),
-                  ],
-                ),
-              ),
+          Center(
+            child: Text(
+              '${stage.name}（建物 $level 棟）',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
-          const SizedBox(height: 16),
-          Text(
-            '草原',
-            style: Theme.of(context).textTheme.titleMedium,
           ),
-          const SizedBox(height: 12),
-          AspectRatio(
-            aspectRatio: 1,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF8BC34A),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: gridSize,
-                  crossAxisSpacing: 4,
-                  mainAxisSpacing: 4,
-                ),
-                itemCount: gridSize * gridSize,
-                itemBuilder: (context, index) {
-                  final x = index % gridSize;
-                  final y = index ~/ gridSize;
-                  final building = town.buildingAt(x, y);
-                  return _GrassTile(
-                    key: ValueKey('tile_${x}_$y'),
-                    building: building,
-                    placementActive: selectedType != null && building == null,
-                    onTap: () => _onTileTap(townProvider, x, y),
-                  );
-                },
+          if (isFinalStage) ...[
+            const SizedBox(height: 4),
+            Center(
+              child: Text(
+                '🚀 ロケット発射回数: $launches',
+                style: TextStyle(color: colorScheme.outline),
               ),
             ),
+          ],
+          if (nextStage != null) ...[
+            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: (level - stage.minLevel) /
+                    (nextStage.minLevel - stage.minLevel),
+                minHeight: 8,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Center(
+              child: Text(
+                '次は「${nextStage.name}」まであと ${nextStage.minLevel - level} 棟',
+                style: TextStyle(fontSize: 12, color: colorScheme.outline),
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
+          if (buildingCounts.isNotEmpty) ...[
+            Text('建設済みの建物', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: buildingCounts.entries.map((entry) {
+                final def = BuildingDefinitions.of(entry.key);
+                return Chip(
+                  avatar: Icon(def.icon, size: 18),
+                  label: Text('${def.displayName} ×${entry.value}'),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 24),
+          ],
+          FilledButton.icon(
+            onPressed: () => _pickBuildingType(townProvider),
+            icon: const Icon(Icons.add_business),
+            label: const Text('建物を建てる'),
           ),
         ],
       ),
@@ -210,85 +133,138 @@ class _TownScreenState extends State<TownScreen> {
   }
 }
 
-class _GrassTile extends StatefulWidget {
-  final Building? building;
-  final bool placementActive;
-  final VoidCallback onTap;
+/// 街の発展段階を表す地平線シーン。
+/// 発展段階が変わるとアイコンがバウンドして切り替わり、
+/// ロケット建造段階では発射回数が増えるたびにロケットが飛んでいくアニメーションを再生する。
+class _HorizonScene extends StatefulWidget {
+  final TownStage stage;
+  final int launches;
+  final bool isFinalStage;
 
-  const _GrassTile({
-    required super.key,
-    required this.building,
-    required this.placementActive,
-    required this.onTap,
+  const _HorizonScene({
+    required this.stage,
+    required this.launches,
+    required this.isFinalStage,
   });
 
   @override
-  State<_GrassTile> createState() => _GrassTileState();
+  State<_HorizonScene> createState() => _HorizonSceneState();
 }
 
-class _GrassTileState extends State<_GrassTile>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+class _HorizonSceneState extends State<_HorizonScene>
+    with TickerProviderStateMixin {
+  late AnimationController _stageController;
+  late AnimationController _launchController;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _stageController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 450),
-      // すでに建設済みの状態で画面を開いた場合はアニメーションせず即表示する。
-      value: widget.building != null ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 500),
+      value: 1.0,
+    );
+    _launchController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
     );
   }
 
   @override
-  void didUpdateWidget(_GrassTile oldWidget) {
+  void didUpdateWidget(_HorizonScene oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 空きマス→建設済みに変わった瞬間だけ「建つ」アニメーションを再生する。
-    if (oldWidget.building == null && widget.building != null) {
-      _controller.forward(from: 0.0);
+    if (oldWidget.stage.name != widget.stage.name) {
+      _stageController.forward(from: 0.0);
+    }
+    if (widget.launches > oldWidget.launches) {
+      _launchController.forward(from: 0.0);
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _stageController.dispose();
+    _launchController.dispose();
     super.dispose();
+  }
+
+  List<Color> _skyColorsFor(TownStage stage) {
+    switch (stage.name) {
+      case 'たき火':
+        return const [Color(0xFF2C1B47), Color(0xFFAA5A3C)];
+      case '小さな家':
+      case '大きな家':
+        return const [Color(0xFF6EC6FF), Color(0xFFBBDEFB)];
+      case '工場':
+      case '発電所':
+        return const [Color(0xFF607D8B), Color(0xFFCFD8DC)];
+      default:
+        return const [Color(0xFF0D1B2A), Color(0xFF1B263B)];
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: widget.onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: widget.placementActive
-              ? const Color(0xFFC8E6A0)
-              : const Color(0xFFA5D86E),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: widget.placementActive
-                ? colorScheme.primary
-                : const Color(0xFF7CB342),
-            width: widget.placementActive ? 2 : 1,
-          ),
-        ),
-        child: widget.building == null
-            ? null
-            : Center(
-                child: ScaleTransition(
-                  scale: CurvedAnimation(
-                    parent: _controller,
-                    curve: Curves.elasticOut,
-                  ),
-                  child: Icon(
-                    BuildingDefinitions.of(widget.building!.type).icon,
-                    color: colorScheme.primary,
-                  ),
+    final skyColors = _skyColorsFor(widget.stage);
+
+    return AspectRatio(
+      aspectRatio: 16 / 10,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: skyColors,
                 ),
               ),
+            ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: FractionallySizedBox(
+                heightFactor: 0.26,
+                widthFactor: 1.0,
+                child: Container(color: const Color(0xFF4E342E)),
+              ),
+            ),
+            Center(
+              child: ScaleTransition(
+                scale: CurvedAnimation(
+                  parent: _stageController,
+                  curve: Curves.elasticOut,
+                ),
+                child: Icon(
+                  widget.stage.icon,
+                  size: 88,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            if (widget.isFinalStage)
+              AnimatedBuilder(
+                animation: _launchController,
+                builder: (context, child) {
+                  final t = _launchController.value;
+                  return Positioned(
+                    bottom: 36 + t * 160,
+                    right: 36,
+                    child: Opacity(
+                      opacity: (1 - t).clamp(0.0, 1.0),
+                      child: const Icon(
+                        Icons.rocket_launch,
+                        color: Colors.orangeAccent,
+                        size: 28,
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
       ),
     );
   }

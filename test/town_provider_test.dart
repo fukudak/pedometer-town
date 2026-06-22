@@ -82,6 +82,25 @@ void main() {
     });
   });
 
+  group('TownProvider ロケット発射履歴', () {
+    test('ロケット建造段階(13棟目)に到達すると発射履歴が1件記録される', () async {
+      await energyProvider.applyBatteryState(
+        const BatteryState(storedWh: 100000, capacityWh: 100000),
+      );
+
+      for (var i = 0; i < 13; i++) {
+        final pos = townProvider.nextAvailablePosition()!;
+        final ok =
+            await townProvider.buildBuilding(BuildingType.house, pos.x, pos.y);
+        expect(ok, isTrue);
+      }
+
+      final events = storage.loadRocketLaunchEvents();
+      expect(events.length, 1);
+      expect(events.first.number, 1);
+    });
+  });
+
   group('TownProvider.canBuild', () {
     test('残量がコスト以上かつ座標が空いていれば建設可能と判定する', () async {
       await energyProvider.applyBatteryState(

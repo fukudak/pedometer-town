@@ -6,7 +6,9 @@ import '../constants/game_constants.dart';
 import '../domain/models/battery_state.dart';
 import '../domain/models/building.dart';
 import '../domain/models/daily_step_record.dart';
+import '../domain/models/full_battery_event.dart';
 import '../domain/models/player_settings.dart';
+import '../domain/models/rocket_launch_event.dart';
 import '../domain/models/town_state.dart';
 import '../domain/town_logic.dart';
 
@@ -26,6 +28,8 @@ class LocalStorage {
   static const _keyLifetimeEnergyWh = 'lifetime_energy_wh';
   static const _keyAndroidBaselineDate = 'health_android_baseline_date';
   static const _keyAndroidBaselineSteps = 'health_android_baseline_steps';
+  static const _keyFullBatteryEvents = 'full_battery_events';
+  static const _keyRocketLaunchEvents = 'rocket_launch_events';
 
   PlayerSettings loadPlayerSettings() {
     return PlayerSettings(
@@ -140,5 +144,37 @@ class LocalStorage {
   Future<void> saveAndroidStepBaseline(String date, int steps) async {
     await _prefs.setString(_keyAndroidBaselineDate, date);
     await _prefs.setInt(_keyAndroidBaselineSteps, steps);
+  }
+
+  /// 蓄電池が満タンになった記録を、古い順に返す。
+  List<FullBatteryEvent> loadFullBatteryEvents() {
+    final json = _prefs.getString(_keyFullBatteryEvents);
+    if (json == null) return [];
+    return (jsonDecode(json) as List<dynamic>)
+        .map((e) => FullBatteryEvent.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> saveFullBatteryEvents(List<FullBatteryEvent> events) async {
+    await _prefs.setString(
+      _keyFullBatteryEvents,
+      jsonEncode(events.map((e) => e.toJson()).toList()),
+    );
+  }
+
+  /// ロケットを発射した記録を、古い順に返す。
+  List<RocketLaunchEvent> loadRocketLaunchEvents() {
+    final json = _prefs.getString(_keyRocketLaunchEvents);
+    if (json == null) return [];
+    return (jsonDecode(json) as List<dynamic>)
+        .map((e) => RocketLaunchEvent.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> saveRocketLaunchEvents(List<RocketLaunchEvent> events) async {
+    await _prefs.setString(
+      _keyRocketLaunchEvents,
+      jsonEncode(events.map((e) => e.toJson()).toList()),
+    );
   }
 }

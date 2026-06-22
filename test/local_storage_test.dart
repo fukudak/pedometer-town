@@ -6,7 +6,9 @@ import 'package:pedometer_town/data/local_storage.dart';
 import 'package:pedometer_town/domain/models/battery_state.dart';
 import 'package:pedometer_town/domain/models/building.dart';
 import 'package:pedometer_town/domain/models/daily_step_record.dart';
+import 'package:pedometer_town/domain/models/full_battery_event.dart';
 import 'package:pedometer_town/domain/models/player_settings.dart';
+import 'package:pedometer_town/domain/models/rocket_launch_event.dart';
 import 'package:pedometer_town/domain/models/town_state.dart';
 
 void main() {
@@ -195,6 +197,50 @@ void main() {
       await storage.clearAllDailyRecords();
 
       expect(storage.loadAllDailyRecords(), isEmpty);
+    });
+  });
+
+  group('FullBatteryEvent', () {
+    test('未保存時は空のリストを返す', () async {
+      final storage = LocalStorage(await SharedPreferences.getInstance());
+      expect(storage.loadFullBatteryEvents(), isEmpty);
+    });
+
+    test('保存して復元できる', () async {
+      final storage = LocalStorage(await SharedPreferences.getInstance());
+      const events = [
+        FullBatteryEvent(number: 1, date: '2026-06-20'),
+        FullBatteryEvent(number: 2, date: '2026-06-21'),
+      ];
+
+      await storage.saveFullBatteryEvents(events);
+      final loaded = storage.loadFullBatteryEvents();
+
+      expect(loaded.length, 2);
+      expect(loaded[0].number, 1);
+      expect(loaded[1].date, '2026-06-21');
+    });
+  });
+
+  group('RocketLaunchEvent', () {
+    test('未保存時は空のリストを返す', () async {
+      final storage = LocalStorage(await SharedPreferences.getInstance());
+      expect(storage.loadRocketLaunchEvents(), isEmpty);
+    });
+
+    test('保存して復元できる', () async {
+      final storage = LocalStorage(await SharedPreferences.getInstance());
+      const events = [
+        RocketLaunchEvent(number: 1, date: '2026-06-20'),
+        RocketLaunchEvent(number: 2, date: '2026-06-22'),
+      ];
+
+      await storage.saveRocketLaunchEvents(events);
+      final loaded = storage.loadRocketLaunchEvents();
+
+      expect(loaded.length, 2);
+      expect(loaded[0].number, 1);
+      expect(loaded[1].date, '2026-06-22');
     });
   });
 }
