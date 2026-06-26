@@ -45,7 +45,7 @@ void main() {
   });
 
   group('EnergyProvider.syncStepsFromHealth', () {
-    test('複数回の同期で1日の上限(10000Wh)を超えて加算されない', () async {
+    test('1日の上限はなく、複数回満タンになっても発電が止まらない', () async {
       var now = DateTime(2026, 6, 16, 8);
       final provider = EnergyProvider(
         storage,
@@ -67,14 +67,16 @@ void main() {
       expect(provider.today.totalEnergyWh, closeTo(10000.0, 1e-9));
       expect(provider.battery.storedWh, closeTo(0.0, 1e-9));
 
-      // 3回目: +2,000歩 → 1日のエネルギー上限到達済みのため加算なし
+      // 3回目: +2,000歩 → 満タン後も発電は止まらず、蓄電池に2000Wh蓄積される
       now = now.add(const Duration(hours: 1));
       healthService.totalSteps = 12000;
       await provider.syncStepsFromHealth();
-      expect(provider.today.totalEnergyWh, closeTo(10000.0, 1e-9));
-      expect(provider.battery.storedWh, closeTo(0.0, 1e-9));
-      // 3回目もエネルギーは加算されないが歩数差分自体は積算される
+      expect(provider.today.totalEnergyWh, closeTo(12000.0, 1e-9));
+      expect(provider.battery.storedWh, closeTo(2000.0, 1e-9));
       expect(provider.today.totalSteps, 12000);
+
+      final events = storage.loadFullBatteryEvents();
+      expect(events.length, 1);
     });
 
     test('日付が変わると当日の記録がリセットされる', () async {
@@ -123,12 +125,9 @@ void main() {
       );
       townProvider = TownProvider(storage, provider, settingsProvider);
 
-      // 公園の建設コスト(800Wh)分のエネルギーを確保する
-      await provider.applyBatteryState(
-        const BatteryState(storedWh: 800, capacityWh: 10000),
-      );
-      final built = await townProvider.buildBuilding(BuildingType.park, 0, 0);
-      expect(built, isTrue);
+      // house, powerPlant, park の順に3棟発展させ、公園を1つ建てる
+      await townProvider.advanceTown(3);
+      expect(townProvider.town.buildings.last.type, BuildingType.park);
 
       // 1000歩 @70kg/5km/h, 係数1.0×1.1=1.1 → 1100.0Wh
       healthService.totalSteps = 1000;

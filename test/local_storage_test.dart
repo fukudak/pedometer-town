@@ -5,6 +5,7 @@ import 'package:pedometer_town/constants/game_constants.dart';
 import 'package:pedometer_town/data/local_storage.dart';
 import 'package:pedometer_town/domain/models/battery_state.dart';
 import 'package:pedometer_town/domain/models/building.dart';
+import 'package:pedometer_town/domain/models/achievement_event.dart';
 import 'package:pedometer_town/domain/models/daily_step_record.dart';
 import 'package:pedometer_town/domain/models/full_battery_event.dart';
 import 'package:pedometer_town/domain/models/player_settings.dart';
@@ -240,6 +241,28 @@ void main() {
 
       expect(loaded.length, 2);
       expect(loaded[0].number, 1);
+      expect(loaded[1].date, '2026-06-22');
+    });
+  });
+
+  group('AchievementEvent', () {
+    test('未保存時は空のリストを返す', () async {
+      final storage = LocalStorage(await SharedPreferences.getInstance());
+      expect(storage.loadAchievementEvents(), isEmpty);
+    });
+
+    test('保存して復元できる', () async {
+      final storage = LocalStorage(await SharedPreferences.getInstance());
+      const events = [
+        AchievementEvent(id: 'first_house', date: '2026-06-20'),
+        AchievementEvent(id: 'first_rocket', date: '2026-06-22'),
+      ];
+
+      await storage.saveAchievementEvents(events);
+      final loaded = storage.loadAchievementEvents();
+
+      expect(loaded.length, 2);
+      expect(loaded[0].id, 'first_house');
       expect(loaded[1].date, '2026-06-22');
     });
   });

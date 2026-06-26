@@ -27,9 +27,6 @@ class GameConstants {
   /// アプリのバージョン文字列（pubspec.yaml の version と合わせて管理）
   static const String appVersion = '0.9';
 
-  /// 1日のエネルギー上限 (Wh)。蓄電池の初期容量(1万歩分)と一致させる。
-  static const double dailyEnergyCapWh = 10000.0;
-
   /// 蓄電池 初期容量 (Wh)
   static const double initialBatteryCapacityWh = 10000.0;
 

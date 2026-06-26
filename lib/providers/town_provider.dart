@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 
+import '../constants/achievements.dart';
 import '../constants/game_constants.dart';
 import '../constants/town_stages.dart';
 import '../data/local_storage.dart';
+import '../domain/models/achievement_event.dart';
 import '../domain/models/building.dart';
 import '../domain/models/rocket_launch_event.dart';
 import '../domain/models/town_state.dart';
@@ -18,6 +20,7 @@ class TownProvider extends ChangeNotifier {
   final DateTime Function() _now;
 
   TownState _town;
+  final List<Achievement> _pendingCelebrations = [];
 
   TownProvider(
     this._storage,
@@ -41,26 +44,29 @@ class TownProvider extends ChangeNotifier {
         _town.buildings,
       );
 
-  /// エネルギー残量だけで建設可否を判定する（座標の空き状況は見ない）。
-  bool canAfford(BuildingType type) {
-    return _energyProvider.battery.storedWh >= TownLogic.costOf(type);
-  }
+  /// 建物から算出される人口
+  int get population => TownLogic.totalPopulation(_town.buildings);
 
-  /// 指定座標に指定した建物を建設できるかどうか
-  bool canBuild(BuildingType type, int x, int y) {
-    return TownLogic.canBuild(
-      _energyProvider.battery,
-      type,
-      _town.buildings,
-      x,
-      y,
-    );
+  /// 棟数・累積発電量・ロケット発射数を合成した文明スコア
+  int get civilizationScore => TownLogic.civilizationScore(
+        buildings: _town.buildings,
+        lifetimeEnergyWh: _energyProvider.lifetimeEnergyWh,
+        rocketLaunches: TownStages.rocketLaunchCount(_town.townLevel),
+      );
+
+  /// まだ画面で祝福表示されていない、新たに解除された実績一覧。
+  List<Achievement> get pendingCelebrations =>
+      List.unmodifiable(_pendingCelebrations);
+
+  /// 祝福表示済みとしてキューをクリアする。
+  void clearPendingCelebrations() {
+    _pendingCelebrations.clear();
   }
 
   /// 空いている座標を1つ返す（地平線ビューでは座標は表示しないが、
   /// データモデル上は座標を保持するため自動で割り当てる）。
   /// すべて埋まっている場合は null を返す。
-  ({int x, int y})? nextAvailablePosition() {
+  ({int x, int y})? _nextAvailablePosition() {
     for (var y = 0; y < GameConstants.townGridSize; y++) {
       for (var x = 0; x < GameConstants.townGridSize; x++) {
         if (!TownLogic.isOccupied(_town.buildings, x, y)) {
@@ -71,38 +77,34 @@ class TownProvider extends ChangeNotifier {
     return null;
   }
 
-  /// 指定座標に建物を建設する。座標がグリッド範囲外・空いていない、またはエネルギー不足の場合は false を返す。
-  Future<bool> buildBuilding(BuildingType type, int x, int y) async {
-    if (!TownLogic.isWithinGrid(x, y)) {
-      return false;
-    }
-    if (TownLogic.isOccupied(_town.buildings, x, y)) {
-      return false;
-    }
+  /// 蓄電池が満タンになった回数分、街を自動で発展させる
+  /// （建物の種類は自動で順に割り当てられ、ユーザーが選ぶ必要はない）。
+  Future<void> advanceTown(int count) async {
+    for (var i = 0; i < count; i++) {
+      final pos = _nextAvailablePosition();
+      if (pos == null) break;
 
-    final cost = TownLogic.costOf(type);
-    final result = _energyProvider.battery.consumeEnergy(cost);
-    if (!result.success) {
-      return false;
+      final type = BuildingType
+          .values[_town.buildings.length % BuildingType.values.length];
+      final launchesBefore = TownStages.rocketLaunchCount(_town.townLevel);
+      _town = _town.addBuilding(Building(type: type, x: pos.x, y: pos.y));
+      final launchesAfter = TownStages.rocketLaunchCount(_town.townLevel);
+
+      final newCapacity = TownLogic.effectiveCapacity(
+        GameConstants.initialBatteryCapacityWh,
+        _town.buildings,
+      );
+      await _energyProvider.applyBatteryState(
+        _energyProvider.battery.copyWith(capacityWh: newCapacity),
+      );
+
+      if (launchesAfter > launchesBefore) {
+        await _recordRocketLaunches(launchesAfter - launchesBefore);
+      }
     }
-
-    final launchesBefore = TownStages.rocketLaunchCount(_town.townLevel);
-    _town = _town.addBuilding(Building(type: type, x: x, y: y));
-    final launchesAfter = TownStages.rocketLaunchCount(_town.townLevel);
-    final newCapacity = TownLogic.effectiveCapacity(
-      GameConstants.initialBatteryCapacityWh,
-      _town.buildings,
-    );
-
-    await _energyProvider.applyBatteryState(
-      result.state.copyWith(capacityWh: newCapacity),
-    );
     await _storage.saveTownState(_town);
-    if (launchesAfter > launchesBefore) {
-      await _recordRocketLaunches(launchesAfter - launchesBefore);
-    }
+    await _checkAchievements();
     notifyListeners();
-    return true;
   }
 
   /// ロケットの発射を履歴に記録する。
@@ -115,6 +117,26 @@ class TownProvider extends ChangeNotifier {
         RocketLaunchEvent(number: events.length + i + 1, date: todayKey),
     ];
     await _storage.saveRocketLaunchEvents(newEvents);
+  }
+
+  /// 新たに条件を満たした実績を解除し、履歴に記録する。
+  Future<void> _checkAchievements() async {
+    final launches = TownStages.rocketLaunchCount(_town.townLevel);
+    final events = _storage.loadAchievementEvents();
+    final unlockedIds = events.map((e) => e.id).toSet();
+    final newlyUnlocked = Achievements.all
+        .where((a) =>
+            !unlockedIds.contains(a.id) && a.isUnlocked(_town, launches))
+        .toList();
+    if (newlyUnlocked.isEmpty) return;
+
+    final todayKey = _dateKey(_now());
+    final newEvents = [
+      ...events,
+      for (final a in newlyUnlocked) AchievementEvent(id: a.id, date: todayKey),
+    ];
+    await _storage.saveAchievementEvents(newEvents);
+    _pendingCelebrations.addAll(newlyUnlocked);
   }
 
   static String _dateKey(DateTime date) {

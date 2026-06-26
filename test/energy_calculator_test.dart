@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pedometer_town/constants/game_constants.dart';
 import 'package:pedometer_town/domain/energy_calculator.dart';
 
 void main() {
@@ -31,39 +30,13 @@ void main() {
       expect(result, 0.0);
     });
 
-    test('1日の上限でキャップされる', () {
+    test('大量の歩数でも上限なく計算される（1日の上限は撤廃）', () {
       final result = EnergyCalculator.calculateEnergyWh(
         steps: 1000000,
         weightKg: 70,
         speedKmh: 5,
       );
-      expect(result, GameConstants.dailyEnergyCapWh);
-    });
-  });
-
-  group('EnergyCalculator.clampDailyEnergy', () {
-    test('当日蓄積が0なら上限まで丸ごと加算可能', () {
-      final result = EnergyCalculator.clampDailyEnergy(
-        newEnergyWh: 100.0,
-        alreadyEarnedTodayWh: 0.0,
-      );
-      expect(result, 100.0);
-    });
-
-    test('上限に近い場合は残り分のみ加算可能', () {
-      final result = EnergyCalculator.clampDailyEnergy(
-        newEnergyWh: 100.0,
-        alreadyEarnedTodayWh: GameConstants.dailyEnergyCapWh - 50.0,
-      );
-      expect(result, closeTo(50.0, 1e-9));
-    });
-
-    test('すでに上限到達済みなら0', () {
-      final result = EnergyCalculator.clampDailyEnergy(
-        newEnergyWh: 100.0,
-        alreadyEarnedTodayWh: GameConstants.dailyEnergyCapWh,
-      );
-      expect(result, 0.0);
+      expect(result, closeTo(1000000.0, 1e-6));
     });
   });
 }

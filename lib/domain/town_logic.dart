@@ -35,6 +35,24 @@ class TownLogic {
   static double costOf(BuildingType type) =>
       BuildingDefinitions.of(type).costWh;
 
+  /// 建物から算出される人口
+  static int totalPopulation(List<Building> buildings) {
+    return buildings
+        .map((b) => BuildingDefinitions.of(b.type).population)
+        .fold(0, (sum, p) => sum + p);
+  }
+
+  /// 棟数・累積発電量・ロケット発射数を合成した文明スコア
+  static int civilizationScore({
+    required List<Building> buildings,
+    required double lifetimeEnergyWh,
+    required int rocketLaunches,
+  }) {
+    return buildings.length * 10 +
+        (lifetimeEnergyWh / 100).floor() +
+        rocketLaunches * 50;
+  }
+
   /// 指定座標に既に建物があるかどうか
   static bool isOccupied(List<Building> buildings, int x, int y) {
     return buildings.any((b) => b.x == x && b.y == y);

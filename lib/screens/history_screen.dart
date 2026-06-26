@@ -36,10 +36,12 @@ class HistoryScreen extends StatelessWidget {
     final List<DailyStepRecord> records = historyProvider.loadHistory();
     final fullBatteryEvents = historyProvider.loadFullBatteryEvents();
     final rocketLaunchEvents = historyProvider.loadRocketLaunchEvents();
+    final achievementEvents = historyProvider.loadAchievementEvents();
     final colorScheme = Theme.of(context).colorScheme;
     final isEmpty = records.isEmpty &&
         fullBatteryEvents.isEmpty &&
-        rocketLaunchEvents.isEmpty;
+        rocketLaunchEvents.isEmpty &&
+        achievementEvents.isEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -63,6 +65,29 @@ class HistoryScreen extends StatelessWidget {
           : ListView(
               padding: const EdgeInsets.all(16.0),
               children: [
+                if (achievementEvents.isNotEmpty) ...[
+                  Text('🏆 実績', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  ...achievementEvents.map(
+                    (unlocked) => Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: colorScheme.secondaryContainer,
+                          child: Icon(
+                            unlocked.achievement.icon,
+                            size: 18,
+                            color: colorScheme.onSecondaryContainer,
+                          ),
+                        ),
+                        title: Text(unlocked.achievement.title),
+                        subtitle: Text(unlocked.achievement.description),
+                        trailing: Text(_formatDate(unlocked.date)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 if (rocketLaunchEvents.isNotEmpty) ...[
                   Text(
                     'ロケット発射履歴',

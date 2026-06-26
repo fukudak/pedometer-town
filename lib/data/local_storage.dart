@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/game_constants.dart';
+import '../domain/models/achievement_event.dart';
 import '../domain/models/battery_state.dart';
 import '../domain/models/building.dart';
 import '../domain/models/daily_step_record.dart';
@@ -30,6 +31,8 @@ class LocalStorage {
   static const _keyAndroidBaselineSteps = 'health_android_baseline_steps';
   static const _keyFullBatteryEvents = 'full_battery_events';
   static const _keyRocketLaunchEvents = 'rocket_launch_events';
+  static const _keyAchievementEvents = 'achievement_events';
+  static const _keyPendingBatteries = 'pending_batteries';
 
   PlayerSettings loadPlayerSettings() {
     return PlayerSettings(
@@ -176,5 +179,28 @@ class LocalStorage {
       _keyRocketLaunchEvents,
       jsonEncode(events.map((e) => e.toJson()).toList()),
     );
+  }
+
+  /// 解除済みの実績を、解除した順に返す。
+  List<AchievementEvent> loadAchievementEvents() {
+    final json = _prefs.getString(_keyAchievementEvents);
+    if (json == null) return [];
+    return (jsonDecode(json) as List<dynamic>)
+        .map((e) => AchievementEvent.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> saveAchievementEvents(List<AchievementEvent> events) async {
+    await _prefs.setString(
+      _keyAchievementEvents,
+      jsonEncode(events.map((e) => e.toJson()).toList()),
+    );
+  }
+
+  /// 満タンになったがまだ街の発展に使われていない蓄電池の個数。
+  int loadPendingBatteries() => _prefs.getInt(_keyPendingBatteries) ?? 0;
+
+  Future<void> savePendingBatteries(int count) async {
+    await _prefs.setInt(_keyPendingBatteries, count);
   }
 }

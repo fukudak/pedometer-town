@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:pedometer_town/constants/game_constants.dart';
 import 'package:pedometer_town/data/local_storage.dart';
 import 'package:pedometer_town/domain/models/battery_state.dart';
 import 'package:pedometer_town/domain/models/building.dart';
@@ -24,96 +23,110 @@ void main() {
     townProvider = TownProvider(storage, energyProvider, settingsProvider);
   });
 
-  group('TownProvider.buildBuilding', () {
-    test('発電所を建設するとコスト分が消費され、容量が+2000Whされる', () async {
-      await energyProvider.applyBatteryState(
-        const BatteryState(storedWh: 1000, capacityWh: 10000),
-      );
+  group('TownProvider.advanceTown', () {
+    test('1回分発展すると建物が1棟増え、種類は house から順に割り当てられる', () async {
+      await townProvider.advanceTown(1);
 
-      final result =
-          await townProvider.buildBuilding(BuildingType.powerPlant, 0, 0);
-
-      expect(result, isTrue);
-      expect(energyProvider.battery.storedWh, 0);
-      expect(energyProvider.battery.capacityWh, 12000);
       expect(townProvider.town.buildings.length, 1);
-      expect(townProvider.town.buildings.first.type, BuildingType.powerPlant);
+      expect(townProvider.town.buildings.first.type, BuildingType.house);
     });
 
-    test('エネルギー不足の場合は建設に失敗し状態は変化しない', () async {
-      await energyProvider.applyBatteryState(
-        const BatteryState(storedWh: 100, capacityWh: 10000),
-      );
+    test('3回分発展すると house, powerPlant, park の順に建つ', () async {
+      await townProvider.advanceTown(3);
 
-      final result = await townProvider.buildBuilding(BuildingType.house, 0, 0);
-
-      expect(result, isFalse);
-      expect(energyProvider.battery.storedWh, 100);
-      expect(townProvider.town.buildings, isEmpty);
-    });
-
-    test('座標が既に埋まっている場合は建設に失敗する', () async {
-      await energyProvider.applyBatteryState(
-        const BatteryState(storedWh: 2000, capacityWh: 10000),
-      );
-
-      final first = await townProvider.buildBuilding(BuildingType.house, 1, 1);
-      final second = await townProvider.buildBuilding(BuildingType.house, 1, 1);
-
-      expect(first, isTrue);
-      expect(second, isFalse);
-      expect(townProvider.town.buildings.length, 1);
-    });
-
-    test('座標がグリッド範囲外の場合は建設に失敗し状態は変化しない', () async {
-      await energyProvider.applyBatteryState(
-        const BatteryState(storedWh: 2000, capacityWh: 10000),
-      );
-
-      final result = await townProvider.buildBuilding(
+      final types = townProvider.town.buildings.map((b) => b.type).toList();
+      expect(types, [
         BuildingType.house,
-        GameConstants.townGridSize,
-        0,
+        BuildingType.powerPlant,
+        BuildingType.park,
+      ]);
+    });
+
+    test('powerPlant が建つと蓄電池容量が+2000Whされる', () async {
+      await energyProvider.applyBatteryState(
+        const BatteryState(storedWh: 0, capacityWh: 10000),
       );
 
-      expect(result, isFalse);
-      expect(energyProvider.battery.storedWh, 2000);
-      expect(townProvider.town.buildings, isEmpty);
+      await townProvider.advanceTown(2); // house, powerPlant
+
+      expect(energyProvider.battery.capacityWh, 12000);
+    });
+
+    test('同じ座標が重複しないよう自動で空き座標に配置される', () async {
+      await townProvider.advanceTown(5);
+
+      final positions = townProvider.town.buildings
+          .map((b) => '${b.x},${b.y}')
+          .toSet();
+      expect(positions.length, 5);
     });
   });
 
   group('TownProvider ロケット発射履歴', () {
-    test('ロケット建造段階(13棟目)に到達すると発射履歴が1件記録される', () async {
-      await energyProvider.applyBatteryState(
-        const BatteryState(storedWh: 100000, capacityWh: 100000),
-      );
-
-      for (var i = 0; i < 13; i++) {
-        final pos = townProvider.nextAvailablePosition()!;
-        final ok =
-            await townProvider.buildBuilding(BuildingType.house, pos.x, pos.y);
-        expect(ok, isTrue);
-      }
+    test('ロケット建設段階(17棟目)に到達すると発射履歴が1件記録される', () async {
+      await townProvider.advanceTown(17);
 
       final events = storage.loadRocketLaunchEvents();
       expect(events.length, 1);
       expect(events.first.number, 1);
     });
+
+    test('ロケット建設段階到達後、interval棟ごとに発射回数が増える', () async {
+      await townProvider.advanceTown(19); // 17 + 2 (interval)
+
+      final events = storage.loadRocketLaunchEvents();
+      expect(events.length, 2);
+    });
   });
 
-  group('TownProvider.canBuild', () {
-    test('残量がコスト以上かつ座標が空いていれば建設可能と判定する', () async {
-      await energyProvider.applyBatteryState(
-        const BatteryState(storedWh: 500, capacityWh: 10000),
-      );
-      expect(townProvider.canBuild(BuildingType.house, 0, 0), isTrue);
+  group('TownProvider 人口・文明スコア', () {
+    test('人口は house×4 + powerPlant×1 + park×0 で算出される', () async {
+      await townProvider.advanceTown(3); // house, powerPlant, park
+      expect(townProvider.population, 5);
     });
 
-    test('残量がコスト未満なら建設不可と判定する', () async {
-      await energyProvider.applyBatteryState(
-        const BatteryState(storedWh: 100, capacityWh: 10000),
+    test('文明スコアは棟数・累積発電量・ロケット発射数から算出される', () async {
+      await townProvider.advanceTown(1);
+      expect(townProvider.civilizationScore, 10); // 1棟×10
+    });
+  });
+
+  group('TownProvider 実績', () {
+    test('最初の住宅を建てると実績が1件解除される', () async {
+      await townProvider.advanceTown(1);
+
+      expect(townProvider.pendingCelebrations.length, 1);
+      expect(townProvider.pendingCelebrations.first.id, 'first_house');
+
+      final events = storage.loadAchievementEvents();
+      expect(events.length, 1);
+      expect(events.first.id, 'first_house');
+    });
+
+    test('clearPendingCelebrations 後はキューが空になる', () async {
+      await townProvider.advanceTown(1);
+      townProvider.clearPendingCelebrations();
+
+      expect(townProvider.pendingCelebrations, isEmpty);
+    });
+
+    test('同じ実績は二重に解除されない', () async {
+      await townProvider.advanceTown(1);
+      townProvider.clearPendingCelebrations();
+
+      await townProvider.advanceTown(1); // powerPlant が建つだけ
+
+      expect(
+        townProvider.pendingCelebrations.any((a) => a.id == 'first_house'),
+        isFalse,
       );
-      expect(townProvider.canBuild(BuildingType.house, 0, 0), isFalse);
+    });
+
+    test('ロケット建設段階(17棟目)で初めてのロケット実績が解除される', () async {
+      await townProvider.advanceTown(17);
+
+      final events = storage.loadAchievementEvents();
+      expect(events.any((e) => e.id == 'first_rocket'), isTrue);
     });
   });
 }

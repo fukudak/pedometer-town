@@ -8,12 +8,14 @@ class BuildingDefinition {
   final String displayName;
   final double costWh;
   final IconData icon;
+  final int population;
 
   const BuildingDefinition({
     required this.type,
     required this.displayName,
     required this.costWh,
     required this.icon,
+    required this.population,
   });
 }
 
@@ -32,18 +34,21 @@ class BuildingDefinitions {
       displayName: '住宅',
       costWh: 500.0,
       icon: Icons.house,
+      population: 4,
     ),
     BuildingType.powerPlant: BuildingDefinition(
       type: BuildingType.powerPlant,
       displayName: '発電所',
       costWh: 1000.0,
       icon: Icons.bolt,
+      population: 1,
     ),
     BuildingType.park: BuildingDefinition(
       type: BuildingType.park,
       displayName: '公園',
       costWh: 800.0,
       icon: Icons.park,
+      population: 0,
     ),
   };
 
