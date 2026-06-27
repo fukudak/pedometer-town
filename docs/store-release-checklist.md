@@ -1,6 +1,6 @@
 # ストア公開チェックリスト
 
-最終更新: 2026-06-20
+最終更新: 2026-06-27
 
 具体的な操作手順は [release-procedures.md](release-procedures.md) を参照。
 
@@ -14,6 +14,7 @@
   - `android/key.properties`、`android/upload-keystore.jks` は `.gitignore` 済み（コミットされない）
   - `flutter build apk --release` で署名済みビルドが生成されることを確認済み
 - [x] README.md を実態に合わせて更新
+- [x] `doc/` 設計ドキュメントを実装に合わせて更新（2026-06-27）
 - [x] プライバシーポリシー ドラフト作成（`docs/privacy.html`）
 - [x] ストア掲載文ドラフト作成（`docs/store-listing.md`）
 
