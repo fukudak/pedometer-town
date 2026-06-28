@@ -151,6 +151,9 @@ class _TownScreenState extends State<TownScreen> {
                     ),
                   ),
                   FilledButton(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(64, 40),
+                    ),
                     onPressed: pendingBatteries == 0 ? null : _useStock,
                     child: const Text('使う'),
                   ),
