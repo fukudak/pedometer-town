@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import '../constants/building_definitions.dart';
 import '../constants/game_constants.dart';
-import 'models/battery_state.dart';
 import 'models/building.dart';
 
 /// 建設・効果計算（純粋関数）
@@ -30,10 +29,6 @@ class TownLogic {
     return baseCoefficient *
         math.pow(BuildingDefinitions.parkCoefficientMultiplier, parkCount);
   }
-
-  /// 建物の建設コスト (Wh)
-  static double costOf(BuildingType type) =>
-      BuildingDefinitions.of(type).costWh;
 
   /// 建物から算出される人口
   static int totalPopulation(List<Building> buildings) {
@@ -64,18 +59,5 @@ class TownLogic {
         x < GameConstants.townGridSize &&
         y >= 0 &&
         y < GameConstants.townGridSize;
-  }
-
-  /// 指定座標がグリッド内かつ空いていて、かつ蓄電池残量で建設可能かどうか
-  static bool canBuild(
-    BatteryState battery,
-    BuildingType type,
-    List<Building> buildings,
-    int x,
-    int y,
-  ) {
-    if (!isWithinGrid(x, y)) return false;
-    if (isOccupied(buildings, x, y)) return false;
-    return battery.storedWh >= costOf(type);
   }
 }

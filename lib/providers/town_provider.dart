@@ -81,30 +81,50 @@ class TownProvider extends ChangeNotifier {
   /// （建物の種類は自動で順に割り当てられ、ユーザーが選ぶ必要はない）。
   Future<void> advanceTown(int count) async {
     for (var i = 0; i < count; i++) {
-      final pos = _nextAvailablePosition();
-      if (pos == null) break;
-
       final type = BuildingType
           .values[_town.buildings.length % BuildingType.values.length];
-      final launchesBefore = TownStages.rocketLaunchCount(_town.townLevel);
-      _town = _town.addBuilding(Building(type: type, x: pos.x, y: pos.y));
-      final launchesAfter = TownStages.rocketLaunchCount(_town.townLevel);
-
-      final newCapacity = TownLogic.effectiveCapacity(
-        GameConstants.initialBatteryCapacityWh,
-        _town.buildings,
-      );
-      await _energyProvider.applyBatteryState(
-        _energyProvider.battery.copyWith(capacityWh: newCapacity),
-      );
-
-      if (launchesAfter > launchesBefore) {
-        await _recordRocketLaunches(launchesAfter - launchesBefore);
-      }
+      final placed = await _placeBuilding(type);
+      if (!placed) break;
     }
     await _storage.saveTownState(_town);
     await _checkAchievements();
     notifyListeners();
+  }
+
+  /// ユーザーが選んだ種類の建物を1棟、空いている座標に建設する。
+  /// グリッドが満杯の場合は false を返す。
+  Future<bool> buildChosen(BuildingType type) async {
+    final placed = await _placeBuilding(type);
+    if (placed) {
+      await _storage.saveTownState(_town);
+      await _checkAchievements();
+      notifyListeners();
+    }
+    return placed;
+  }
+
+  /// 指定した種類の建物を1棟、空いている座標に建設する（永続化・通知は呼び出し元の責務）。
+  /// グリッドが満杯の場合は false を返す。
+  Future<bool> _placeBuilding(BuildingType type) async {
+    final pos = _nextAvailablePosition();
+    if (pos == null) return false;
+
+    final launchesBefore = TownStages.rocketLaunchCount(_town.townLevel);
+    _town = _town.addBuilding(Building(type: type, x: pos.x, y: pos.y));
+    final launchesAfter = TownStages.rocketLaunchCount(_town.townLevel);
+
+    final newCapacity = TownLogic.effectiveCapacity(
+      GameConstants.initialBatteryCapacityWh,
+      _town.buildings,
+    );
+    await _energyProvider.applyBatteryState(
+      _energyProvider.battery.copyWith(capacityWh: newCapacity),
+    );
+
+    if (launchesAfter > launchesBefore) {
+      await _recordRocketLaunches(launchesAfter - launchesBefore);
+    }
+    return true;
   }
 
   /// ロケットの発射を履歴に記録する。

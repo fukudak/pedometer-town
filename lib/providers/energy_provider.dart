@@ -17,7 +17,6 @@ class EnergyProvider extends ChangeNotifier {
 
   final DateTime Function() _now;
   double Function() _coefficientSupplier;
-  Future<void> Function(int count)? _onBatteryFull;
 
   BatteryState _battery;
   DailyStepRecord _today;
@@ -43,12 +42,6 @@ class EnergyProvider extends ChangeNotifier {
 
   void setCoefficientSupplier(double Function() supplier) {
     _coefficientSupplier = supplier;
-  }
-
-  /// 蓄電池が満タンになった回数を通知するコールバックを設定する
-  /// （街の自動発展に使用）。
-  void setOnBatteryFull(Future<void> Function(int count) callback) {
-    _onBatteryFull = callback;
   }
 
   BatteryState get battery => _battery;
@@ -115,14 +108,13 @@ class EnergyProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// ストックした満タン分を使って街を発展させる。
-  Future<void> useStockedBatteries() async {
-    if (_pendingBatteries == 0 || _onBatteryFull == null) return;
-    final count = _pendingBatteries;
-    _pendingBatteries = 0;
+  /// ストックを指定個数消費する。不足していれば消費せず false を返す。
+  Future<bool> consumeStockedBatteries(int amount) async {
+    if (_pendingBatteries < amount) return false;
+    _pendingBatteries -= amount;
     await _storage.savePendingBatteries(_pendingBatteries);
-    await _onBatteryFull!(count);
     notifyListeners();
+    return true;
   }
 
   /// 満タンになった蓄電池を履歴に記録する。

@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pedometer_town/constants/game_constants.dart';
-import 'package:pedometer_town/domain/models/battery_state.dart';
 import 'package:pedometer_town/domain/models/building.dart';
 import 'package:pedometer_town/domain/town_logic.dart';
 
@@ -46,72 +45,6 @@ void main() {
         Building(type: BuildingType.park, x: 1, y: 0),
       ]);
       expect(result, closeTo(0.01 * 1.1 * 1.1, 1e-12));
-    });
-  });
-
-  group('TownLogic.costOf', () {
-    test('住宅は500Wh', () {
-      expect(TownLogic.costOf(BuildingType.house), 500.0);
-    });
-
-    test('発電所は1000Wh', () {
-      expect(TownLogic.costOf(BuildingType.powerPlant), 1000.0);
-    });
-
-    test('公園は800Wh', () {
-      expect(TownLogic.costOf(BuildingType.park), 800.0);
-    });
-  });
-
-  group('TownLogic.canBuild', () {
-    test('残量がコスト以上かつ座標が空いていれば建設可能', () {
-      const battery = BatteryState(storedWh: 500, capacityWh: 10000);
-      expect(
-        TownLogic.canBuild(battery, BuildingType.house, const [], 0, 0),
-        isTrue,
-      );
-    });
-
-    test('残量がコスト未満なら建設不可', () {
-      const battery = BatteryState(
-        storedWh: 499,
-        capacityWh: GameConstants.initialBatteryCapacityWh,
-      );
-      expect(
-        TownLogic.canBuild(battery, BuildingType.house, const [], 0, 0),
-        isFalse,
-      );
-    });
-
-    test('座標が既に埋まっていれば残量があっても建設不可', () {
-      const battery = BatteryState(storedWh: 500, capacityWh: 10000);
-      const buildings = [Building(type: BuildingType.house, x: 0, y: 0)];
-      expect(
-        TownLogic.canBuild(battery, BuildingType.house, buildings, 0, 0),
-        isFalse,
-      );
-    });
-
-    test('座標がグリッド範囲外（負の値）なら残量があっても建設不可', () {
-      const battery = BatteryState(storedWh: 500, capacityWh: 10000);
-      expect(
-        TownLogic.canBuild(battery, BuildingType.house, const [], -1, 0),
-        isFalse,
-      );
-    });
-
-    test('座標がグリッド範囲外（上限超過）なら残量があっても建設不可', () {
-      const battery = BatteryState(storedWh: 500, capacityWh: 10000);
-      expect(
-        TownLogic.canBuild(
-          battery,
-          BuildingType.house,
-          const [],
-          GameConstants.townGridSize,
-          0,
-        ),
-        isFalse,
-      );
     });
   });
 

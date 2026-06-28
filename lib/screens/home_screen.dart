@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/energy_provider.dart';
 import '../services/health_service.dart';
+import '../widgets/battery_stock_display.dart';
 import 'history_screen.dart';
 import 'settings_screen.dart';
 import 'town_screen.dart';
@@ -139,6 +140,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       fontWeight: FontWeight.w600,
                       color: colorScheme.onPrimaryContainer,
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      BatteryStockDisplay(count: energyProvider.pendingBatteries),
+                      const SizedBox(width: 12),
+                      Text(
+                        'ストック: ${energyProvider.pendingBatteries} 個',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

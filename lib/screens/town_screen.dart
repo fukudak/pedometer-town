@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../constants/building_definitions.dart';
+import '../constants/game_constants.dart';
 import '../constants/town_stages.dart';
 import '../domain/models/building.dart';
+import '../domain/models/town_state.dart';
 import '../providers/energy_provider.dart';
 import '../providers/town_provider.dart';
+import '../widgets/battery_stock_display.dart';
 
 class TownScreen extends StatefulWidget {
   const TownScreen({super.key});
@@ -56,6 +59,52 @@ class _TownScreenState extends State<TownScreen> {
     }
   }
 
+  Future<void> _useStock() async {
+    final energyProvider = context.read<EnergyProvider>();
+    final townProvider = context.read<TownProvider>();
+    final stock = energyProvider.pendingBatteries;
+
+    final type = await showModalBottomSheet<BuildingType>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                '建てる建物を選んでください',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+              ),
+            ),
+            for (final type in BuildingType.values)
+              Builder(
+                builder: (context) {
+                  final def = BuildingDefinitions.of(type);
+                  final affordable = stock >= def.batteryCost;
+                  return ListTile(
+                    leading: Icon(def.icon),
+                    title: Text(def.displayName),
+                    subtitle: Text('消費電池: ${def.batteryCost}個'),
+                    enabled: affordable,
+                    onTap: affordable
+                        ? () => Navigator.of(context).pop(type)
+                        : null,
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+    if (type == null) return;
+
+    final cost = BuildingDefinitions.of(type).batteryCost;
+    final consumed = await energyProvider.consumeStockedBatteries(cost);
+    if (!consumed) return;
+    await townProvider.buildChosen(type);
+  }
+
   @override
   Widget build(BuildContext context) {
     final townProvider = context.watch<TownProvider>();
@@ -79,12 +128,7 @@ class _TownScreenState extends State<TownScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          _HorizonScene(
-            stage: stage,
-            launches: launches,
-            isFinalStage: isFinalStage,
-            houseCount: buildingCounts[BuildingType.house] ?? 0,
-          ),
+          _TownGridMap(town: town),
           const SizedBox(height: 16),
           Center(
             child: Text(
@@ -98,7 +142,7 @@ class _TownScreenState extends State<TownScreen> {
               padding: const EdgeInsets.all(16.0),
               child: Row(
                 children: [
-                  Icon(Icons.battery_charging_full, color: colorScheme.primary),
+                  BatteryStockDisplay(count: pendingBatteries),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -109,9 +153,7 @@ class _TownScreenState extends State<TownScreen> {
                     ),
                   ),
                   FilledButton(
-                    onPressed: pendingBatteries == 0
-                        ? null
-                        : () => energyProvider.useStockedBatteries(),
+                    onPressed: pendingBatteries == 0 ? null : _useStock,
                     child: const Text('使う'),
                   ),
                 ],
@@ -226,184 +268,49 @@ class _StatChip extends StatelessWidget {
   }
 }
 
-/// 街の発展段階を表す地平線シーン。
-/// 発展段階が変わるとアイコンがバウンドして切り替わり、
-/// ロケット建設段階では発射回数が増えるたびにロケットが飛んでいくアニメーションを再生する。
-/// 空の色は発展段階に加えて、実際の時刻（朝・昼・夕・夜）でも変化する。
-class _HorizonScene extends StatefulWidget {
-  final TownStage stage;
-  final int launches;
-  final bool isFinalStage;
-  final int houseCount;
+/// 町を上から見下ろした5x5グリッドマップ。建設済みの建物をマス目に配置して表示する。
+class _TownGridMap extends StatelessWidget {
+  final TownState town;
 
-  const _HorizonScene({
-    required this.stage,
-    required this.launches,
-    required this.isFinalStage,
-    required this.houseCount,
-  });
-
-  @override
-  State<_HorizonScene> createState() => _HorizonSceneState();
-}
-
-class _HorizonSceneState extends State<_HorizonScene>
-    with TickerProviderStateMixin {
-  late AnimationController _stageController;
-  late AnimationController _launchController;
-
-  @override
-  void initState() {
-    super.initState();
-    _stageController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-      value: 1.0,
-    );
-    _launchController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-  }
-
-  @override
-  void didUpdateWidget(_HorizonScene oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.stage.name != widget.stage.name) {
-      _stageController.forward(from: 0.0);
-    }
-    if (widget.launches > oldWidget.launches) {
-      _launchController.forward(from: 0.0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _stageController.dispose();
-    _launchController.dispose();
-    super.dispose();
-  }
-
-  List<Color> _skyColorsFor(TownStage stage) {
-    switch (stage.name) {
-      case '何もない地平線':
-        return const [Color(0xFFE0E0E0), Color(0xFFF5F5F0)];
-      case '豆電球がつく':
-        return const [Color(0xFF1A1330), Color(0xFF3D2C52)];
-      case '電灯がつく':
-        return const [Color(0xFF2C1B47), Color(0xFFAA5A3C)];
-      case '家の明かりが付く':
-        return const [Color(0xFF6EC6FF), Color(0xFFBBDEFB)];
-      case '工場が稼働する':
-        return const [Color(0xFF607D8B), Color(0xFFCFD8DC)];
-      case '街が広がる':
-        return const [Color(0xFF4FA8E0), Color(0xFFA9D6F5)];
-      case '都市になる':
-        return const [Color(0xFF26415C), Color(0xFF4E7A9E)];
-      default:
-        return const [Color(0xFF0D1B2A), Color(0xFF1B263B)];
-    }
-  }
-
-  /// 実際の時刻に応じた重ね色（昼間は重ねない）。
-  Color? _timeOverlayColor() {
-    final hour = DateTime.now().hour;
-    if (hour >= 22 || hour < 5) {
-      return Colors.black.withValues(alpha: 0.35); // 深夜
-    }
-    if ((hour >= 5 && hour < 7) || (hour >= 17 && hour < 19)) {
-      return Colors.deepOrange.withValues(alpha: 0.18); // 朝焼け・夕焼け
-    }
-    return null; // 日中はそのまま
-  }
+  const _TownGridMap({required this.town});
 
   @override
   Widget build(BuildContext context) {
-    final skyColors = _skyColorsFor(widget.stage);
-    final overlayColor = _timeOverlayColor();
-    final icon = widget.stage.icon;
-
+    final colorScheme = Theme.of(context).colorScheme;
     return AspectRatio(
-      aspectRatio: 16 / 10,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Container(
+      aspectRatio: 1,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF7CB342),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        padding: const EdgeInsets.all(6),
+        child: GridView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: GameConstants.townGridSize,
+            crossAxisSpacing: 4,
+            mainAxisSpacing: 4,
+          ),
+          itemCount: GameConstants.townGridSize * GameConstants.townGridSize,
+          itemBuilder: (context, index) {
+            final x = index % GameConstants.townGridSize;
+            final y = index ~/ GameConstants.townGridSize;
+            final building = town.buildingAt(x, y);
+            return Container(
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: skyColors,
-                ),
+                color: const Color(0xFF8FCE52),
+                borderRadius: BorderRadius.circular(6),
               ),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: FractionallySizedBox(
-                heightFactor: 0.26,
-                widthFactor: 1.0,
-                child: Container(color: const Color(0xFF4E342E)),
-              ),
-            ),
-            if (widget.houseCount > 0)
-              Align(
-                alignment: const Alignment(0, 0.65),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 4,
-                    children: List.generate(
-                      widget.houseCount,
-                      (_) => const Icon(
-                        Icons.house,
-                        size: 20,
-                        color: Colors.white,
-                      ),
+              alignment: Alignment.center,
+              child: building == null
+                  ? null
+                  : Icon(
+                      BuildingDefinitions.of(building.type).icon,
+                      color: colorScheme.onSurface,
                     ),
-                  ),
-                ),
-              ),
-            if (icon != null)
-              Center(
-                child: ScaleTransition(
-                  scale: CurvedAnimation(
-                    parent: _stageController,
-                    curve: Curves.elasticOut,
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 88,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            if (widget.isFinalStage)
-              AnimatedBuilder(
-                animation: _launchController,
-                builder: (context, child) {
-                  final t = _launchController.value;
-                  return Positioned(
-                    bottom: 36 + t * 160,
-                    right: 36,
-                    child: Opacity(
-                      opacity: (1 - t).clamp(0.0, 1.0),
-                      child: const Icon(
-                        Icons.rocket_launch,
-                        color: Colors.orangeAccent,
-                        size: 28,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            if (overlayColor != null)
-              IgnorePointer(
-                child: Container(color: overlayColor),
-              ),
-          ],
+            );
+          },
         ),
       ),
     );
