@@ -146,9 +146,7 @@ class _TownScreenState extends State<TownScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      pendingBatteries == 0
-                          ? '満タンの蓄電池はストックされていません'
-                          : 'ストック: $pendingBatteries 個',
+                      'ストック: $pendingBatteries 個',
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
