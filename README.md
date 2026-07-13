@@ -36,6 +36,8 @@ flutter run
 | [doc/requirements.md](doc/requirements.md) | 要件定義 |
 | [doc/tech-stack.md](doc/tech-stack.md) | 技術スタック |
 | [doc/ai-implementation-spec.md](doc/ai-implementation-spec.md) | 実装仕様（数値・挙動の詳細） |
+| [doc/town-atmosphere-plan.md](doc/town-atmosphere-plan.md) | 町の情緒・見た目強化の全体計画と進捗 |
+| [doc/town-atmosphere-spec.md](doc/town-atmosphere-spec.md) | 町の情緒・見た目強化の AI 実装仕様 |
 
 ## ストア公開準備
 
