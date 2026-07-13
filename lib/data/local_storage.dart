@@ -10,6 +10,7 @@ import '../domain/models/daily_step_record.dart';
 import '../domain/models/full_battery_event.dart';
 import '../domain/models/player_settings.dart';
 import '../domain/models/rocket_launch_event.dart';
+import '../domain/models/town_stage_event.dart';
 import '../domain/models/town_state.dart';
 import '../domain/town_logic.dart';
 
@@ -33,6 +34,8 @@ class LocalStorage {
   static const _keyRocketLaunchEvents = 'rocket_launch_events';
   static const _keyAchievementEvents = 'achievement_events';
   static const _keyPendingBatteries = 'pending_batteries';
+  static const _keyTownCelebratedStageIds = 'town_celebrated_stage_ids';
+  static const _keyTownStageEvents = 'town_stage_events';
 
   PlayerSettings loadPlayerSettings() {
     return PlayerSettings(
@@ -202,5 +205,35 @@ class LocalStorage {
 
   Future<void> savePendingBatteries(int count) async {
     await _prefs.setInt(_keyPendingBatteries, count);
+  }
+
+  /// 発展段階の祝福を表示済みの stageId 一覧。
+  /// 未設定（null）は「初回マイグレーション未実行」を意味する。
+  List<String>? loadCelebratedStageIds() {
+    if (!_prefs.containsKey(_keyTownCelebratedStageIds)) return null;
+    return _prefs.getStringList(_keyTownCelebratedStageIds) ?? <String>[];
+  }
+
+  Future<void> saveCelebratedStageIds(List<String> stageIds) async {
+    await _prefs.setStringList(
+      _keyTownCelebratedStageIds,
+      stageIds.toSet().toList(),
+    );
+  }
+
+  /// 発展段階到達の履歴（古い順）。
+  List<TownStageEvent> loadTownStageEvents() {
+    final json = _prefs.getString(_keyTownStageEvents);
+    if (json == null) return [];
+    return (jsonDecode(json) as List<dynamic>)
+        .map((e) => TownStageEvent.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> saveTownStageEvents(List<TownStageEvent> events) async {
+    await _prefs.setString(
+      _keyTownStageEvents,
+      jsonEncode(events.map((e) => e.toJson()).toList()),
+    );
   }
 }

@@ -10,6 +10,7 @@ import 'package:pedometer_town/domain/models/daily_step_record.dart';
 import 'package:pedometer_town/domain/models/full_battery_event.dart';
 import 'package:pedometer_town/domain/models/player_settings.dart';
 import 'package:pedometer_town/domain/models/rocket_launch_event.dart';
+import 'package:pedometer_town/domain/models/town_stage_event.dart';
 import 'package:pedometer_town/domain/models/town_state.dart';
 
 void main() {
@@ -264,6 +265,36 @@ void main() {
       expect(loaded.length, 2);
       expect(loaded[0].id, 'first_house');
       expect(loaded[1].date, '2026-06-22');
+    });
+  });
+
+  group('Town stage celebration', () {
+    test('未保存時の演出済み段階IDは null を返す（未マイグレーション）', () async {
+      final storage = LocalStorage(await SharedPreferences.getInstance());
+      expect(storage.loadCelebratedStageIds(), isNull);
+    });
+
+    test('演出済み段階IDを保存して復元できる', () async {
+      final storage = LocalStorage(await SharedPreferences.getInstance());
+      await storage.saveCelebratedStageIds(['lightbulb', 'lamp']);
+
+      final loaded = storage.loadCelebratedStageIds();
+      expect(loaded, isNotNull);
+      expect(loaded, containsAll(['lightbulb', 'lamp']));
+    });
+
+    test('町の段階履歴を保存して復元できる', () async {
+      final storage = LocalStorage(await SharedPreferences.getInstance());
+      const events = [
+        TownStageEvent(stageId: 'lightbulb', date: '2026-07-13'),
+        TownStageEvent(stageId: 'lamp', date: '2026-07-14'),
+      ];
+      await storage.saveTownStageEvents(events);
+
+      final loaded = storage.loadTownStageEvents();
+      expect(loaded.length, 2);
+      expect(loaded.first.stageId, 'lightbulb');
+      expect(loaded.last.date, '2026-07-14');
     });
   });
 }

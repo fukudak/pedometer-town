@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../constants/town_atmosphere.dart';
 import '../domain/models/daily_step_record.dart';
 import '../providers/history_provider.dart';
 
@@ -37,11 +38,13 @@ class HistoryScreen extends StatelessWidget {
     final fullBatteryEvents = historyProvider.loadFullBatteryEvents();
     final rocketLaunchEvents = historyProvider.loadRocketLaunchEvents();
     final achievementEvents = historyProvider.loadAchievementEvents();
+    final stageEvents = historyProvider.loadTownStageEvents();
     final colorScheme = Theme.of(context).colorScheme;
     final isEmpty = records.isEmpty &&
         fullBatteryEvents.isEmpty &&
         rocketLaunchEvents.isEmpty &&
-        achievementEvents.isEmpty;
+        achievementEvents.isEmpty &&
+        stageEvents.isEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -83,6 +86,29 @@ class HistoryScreen extends StatelessWidget {
                         title: Text(unlocked.achievement.title),
                         subtitle: Text(unlocked.achievement.description),
                         trailing: Text(_formatDate(unlocked.date)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                if (stageEvents.isNotEmpty) ...[
+                  Text('🌆 町の記録', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  ...stageEvents.map(
+                    (event) => Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: colorScheme.primaryContainer,
+                          child: Icon(
+                            TownAtmosphere.stageIcon(event.stage),
+                            size: 18,
+                            color: colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                        title: Text(event.title),
+                        subtitle: Text(event.description),
+                        trailing: Text(_formatDate(event.date)),
                       ),
                     ),
                   ),

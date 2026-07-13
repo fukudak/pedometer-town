@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../constants/achievements.dart';
@@ -6,7 +8,9 @@ import '../constants/town_stages.dart';
 import '../data/local_storage.dart';
 import '../domain/models/achievement_event.dart';
 import '../domain/models/building.dart';
+import '../domain/models/construction_event.dart';
 import '../domain/models/rocket_launch_event.dart';
+import '../domain/models/town_stage_event.dart';
 import '../domain/models/town_state.dart';
 import '../domain/town_logic.dart';
 import 'energy_provider.dart';
@@ -21,6 +25,9 @@ class TownProvider extends ChangeNotifier {
 
   TownState _town;
   final List<Achievement> _pendingCelebrations = [];
+  final List<TownStage> _pendingStageCelebrations = [];
+  ConstructionEvent? _pendingConstructionEvent;
+  final Set<String> _celebratedStageIds;
 
   TownProvider(
     this._storage,
@@ -28,7 +35,11 @@ class TownProvider extends ChangeNotifier {
     this._settingsProvider, {
     DateTime Function()? now,
   })  : _now = now ?? DateTime.now,
-        _town = _storage.loadTownState();
+        _town = _storage.loadTownState(),
+        _celebratedStageIds =
+            (_storage.loadCelebratedStageIds() ?? <String>[]).toSet() {
+    _migrateCelebratedStagesIfNeeded();
+  }
 
   TownState get town => _town;
 
@@ -58,9 +69,24 @@ class TownProvider extends ChangeNotifier {
   List<Achievement> get pendingCelebrations =>
       List.unmodifiable(_pendingCelebrations);
 
+  List<TownStage> get pendingStageCelebrations =>
+      List.unmodifiable(_pendingStageCelebrations);
+
+  ConstructionEvent? get pendingConstructionEvent => _pendingConstructionEvent;
+
+  bool isStageCelebrated(String stageId) => _celebratedStageIds.contains(stageId);
+
   /// 祝福表示済みとしてキューをクリアする。
   void clearPendingCelebrations() {
     _pendingCelebrations.clear();
+  }
+
+  void clearPendingStageCelebrations() {
+    _pendingStageCelebrations.clear();
+  }
+
+  void clearConstructionEvent() {
+    _pendingConstructionEvent = null;
   }
 
   /// 空いている座標を1つ返す（地平線ビューでは座標は表示しないが、
@@ -109,8 +135,10 @@ class TownProvider extends ChangeNotifier {
     final pos = _nextAvailablePosition();
     if (pos == null) return false;
 
+    final beforeLevel = _town.townLevel;
     final launchesBefore = TownStages.rocketLaunchCount(_town.townLevel);
     _town = _town.addBuilding(Building(type: type, x: pos.x, y: pos.y));
+    final afterLevel = _town.townLevel;
     final launchesAfter = TownStages.rocketLaunchCount(_town.townLevel);
 
     final newCapacity = TownLogic.effectiveCapacity(
@@ -124,6 +152,13 @@ class TownProvider extends ChangeNotifier {
     if (launchesAfter > launchesBefore) {
       await _recordRocketLaunches(launchesAfter - launchesBefore);
     }
+    _pendingConstructionEvent = ConstructionEvent(
+      type: type,
+      x: pos.x,
+      y: pos.y,
+      createdAt: _now(),
+    );
+    await _recordStageCelebrations(beforeLevel: beforeLevel, afterLevel: afterLevel);
     return true;
   }
 
@@ -157,6 +192,42 @@ class TownProvider extends ChangeNotifier {
     ];
     await _storage.saveAchievementEvents(newEvents);
     _pendingCelebrations.addAll(newlyUnlocked);
+  }
+
+  Future<void> _recordStageCelebrations({
+    required int beforeLevel,
+    required int afterLevel,
+  }) async {
+    final newlyReached = TownStages.reachedStages(afterLevel).where((stage) {
+      if (stage.id == 'empty') return false;
+      return stage.minLevel > beforeLevel && !_celebratedStageIds.contains(stage.id);
+    }).toList();
+    if (newlyReached.isEmpty) return;
+
+    final existingEvents = _storage.loadTownStageEvents();
+    final todayKey = _dateKey(_now());
+    final newEvents = [
+      ...existingEvents,
+      for (final stage in newlyReached)
+        TownStageEvent(stageId: stage.id, date: todayKey),
+    ];
+    await _storage.saveTownStageEvents(newEvents);
+    _pendingStageCelebrations.addAll(newlyReached);
+
+    _celebratedStageIds.addAll(newlyReached.map((e) => e.id));
+    await _storage.saveCelebratedStageIds(_celebratedStageIds.toList());
+  }
+
+  void _migrateCelebratedStagesIfNeeded() {
+    final initial = _storage.loadCelebratedStageIds();
+    if (initial != null) return;
+
+    final reachedIds = TownStages.reachedStages(_town.townLevel)
+        .where((stage) => stage.id != 'empty')
+        .map((stage) => stage.id)
+        .toSet();
+    _celebratedStageIds.addAll(reachedIds);
+    unawaited(_storage.saveCelebratedStageIds(_celebratedStageIds.toList()));
   }
 
   static String _dateKey(DateTime date) {

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pedometer_town/data/local_storage.dart';
 import 'package:pedometer_town/domain/models/battery_state.dart';
 import 'package:pedometer_town/domain/models/building.dart';
+import 'package:pedometer_town/domain/models/town_state.dart';
 import 'package:pedometer_town/providers/energy_provider.dart';
 import 'package:pedometer_town/providers/settings_provider.dart';
 import 'package:pedometer_town/providers/town_provider.dart';
@@ -59,6 +60,32 @@ void main() {
           .map((b) => '${b.x},${b.y}')
           .toSet();
       expect(positions.length, 5);
+    });
+  });
+
+  group('TownProvider 建設演出イベント', () {
+    test('buildChosen 成功後に constructionEvent がセットされる', () async {
+      final placed = await townProvider.buildChosen(BuildingType.house);
+
+      expect(placed, isTrue);
+      expect(townProvider.pendingConstructionEvent, isNotNull);
+      expect(townProvider.pendingConstructionEvent!.type, BuildingType.house);
+    });
+
+    test('clearConstructionEvent 後は null になる', () async {
+      await townProvider.buildChosen(BuildingType.house);
+      townProvider.clearConstructionEvent();
+
+      expect(townProvider.pendingConstructionEvent, isNull);
+    });
+
+    test('グリッド満杯時に buildChosen は false を返し event を立てない', () async {
+      await townProvider.advanceTown(25);
+      townProvider.clearConstructionEvent();
+
+      final placed = await townProvider.buildChosen(BuildingType.house);
+      expect(placed, isFalse);
+      expect(townProvider.pendingConstructionEvent, isNull);
     });
   });
 
@@ -127,6 +154,46 @@ void main() {
 
       final events = storage.loadAchievementEvents();
       expect(events.any((e) => e.id == 'first_rocket'), isTrue);
+    });
+  });
+
+  group('TownProvider 発展段階祝福', () {
+    test('level 0→1 で stage celebration が pending になり保存される', () async {
+      await townProvider.buildChosen(BuildingType.house);
+
+      expect(townProvider.pendingStageCelebrations.length, 1);
+      expect(townProvider.pendingStageCelebrations.first.id, 'lightbulb');
+      expect(townProvider.isStageCelebrated('lightbulb'), isTrue);
+      expect(storage.loadTownStageEvents().length, 1);
+    });
+
+    test('既存セーブ（10棟）で初期化しても過去分の段階祝福は pending にならない', () async {
+      final oldTown = TownState(
+        buildings: List.generate(
+          10,
+          (i) => Building(
+            type: BuildingType.values[i % BuildingType.values.length],
+            x: i % 5,
+            y: i ~/ 5,
+          ),
+        ),
+      );
+      await storage.saveTownState(oldTown);
+      SharedPreferences.setMockInitialValues({
+        'town_buildings': '[{"type":"house","x":0,"y":0},{"type":"powerPlant","x":1,"y":0},{"type":"park","x":2,"y":0},{"type":"house","x":3,"y":0},{"type":"powerPlant","x":4,"y":0},{"type":"park","x":0,"y":1},{"type":"house","x":1,"y":1},{"type":"powerPlant","x":2,"y":1},{"type":"park","x":3,"y":1},{"type":"house","x":4,"y":1}]',
+      });
+      final migratedStorage = LocalStorage(await SharedPreferences.getInstance());
+      final migratedSettings = SettingsProvider(migratedStorage);
+      final migratedEnergy = EnergyProvider(
+        migratedStorage,
+        HealthService(),
+        migratedSettings,
+      );
+      final migrated = TownProvider(migratedStorage, migratedEnergy, migratedSettings);
+
+      expect(migrated.pendingStageCelebrations, isEmpty);
+      expect(migrated.isStageCelebrated('lightbulb'), isTrue);
+      expect(migrated.isStageCelebrated('town'), isTrue);
     });
   });
 }
