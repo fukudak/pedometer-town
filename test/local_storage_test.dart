@@ -25,6 +25,7 @@ void main() {
       expect(settings.weightKg, GameConstants.defaultWeightKg);
       expect(settings.defaultSpeedKmh, GameConstants.defaultSpeedKmh);
       expect(settings.townWeatherFxEnabled, isTrue);
+      expect(settings.townName, 'わたしの町');
     });
 
     test('保存した値が読み込める', () async {
@@ -34,12 +35,14 @@ void main() {
           weightKg: 84,
           defaultSpeedKmh: 6.0,
           townWeatherFxEnabled: false,
+          townName: 'テストタウン',
         ),
       );
       final loaded = storage.loadPlayerSettings();
       expect(loaded.weightKg, 84);
       expect(loaded.defaultSpeedKmh, 6.0);
       expect(loaded.townWeatherFxEnabled, isFalse);
+      expect(loaded.townName, 'テストタウン');
     });
   });
 

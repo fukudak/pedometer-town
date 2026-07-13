@@ -58,6 +58,13 @@ class TownProvider extends ChangeNotifier {
   /// 建物から算出される人口
   int get population => TownLogic.totalPopulation(_town.buildings);
 
+  /// 初ロケット発射日（未発射なら null）。
+  String? get firstRocketLaunchDate {
+    final events = _storage.loadRocketLaunchEvents();
+    if (events.isEmpty) return null;
+    return events.first.date;
+  }
+
   /// 棟数・累積発電量・ロケット発射数を合成した文明スコア
   int get civilizationScore => TownLogic.civilizationScore(
         buildings: _town.buildings,

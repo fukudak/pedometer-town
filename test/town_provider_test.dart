@@ -90,6 +90,16 @@ void main() {
   });
 
   group('TownProvider ロケット発射履歴', () {
+    test('初ロケット発射日を取得できる', () async {
+      await townProvider.advanceTown(17);
+      final today = DateTime.now();
+      final expectedDate =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
+      expect(townProvider.firstRocketLaunchDate, isNotNull);
+      expect(townProvider.firstRocketLaunchDate, expectedDate);
+    });
+
     test('ロケット建設段階(17棟目)に到達すると発射履歴が1件記録される', () async {
       await townProvider.advanceTown(17);
 

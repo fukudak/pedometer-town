@@ -55,4 +55,14 @@ class SettingsProvider extends ChangeNotifier {
     await _storage.savePlayerSettings(_settings);
     notifyListeners();
   }
+
+  /// 町の名前を更新する。空白のみの場合はデフォルト名に戻す。
+  Future<void> updateTownName(String name) async {
+    final trimmed = name.trim();
+    _settings = _settings.copyWith(
+      townName: trimmed.isEmpty ? 'わたしの町' : trimmed,
+    );
+    await _storage.savePlayerSettings(_settings);
+    notifyListeners();
+  }
 }

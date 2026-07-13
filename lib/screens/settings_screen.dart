@@ -18,13 +18,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late double _weightKg;
   late double _speedKmh;
   late double _coefficient;
+  late String _townName;
 
   late TextEditingController _weightController;
   late TextEditingController _speedController;
   late TextEditingController _coefficientController;
+  late TextEditingController _townNameController;
   late FocusNode _weightFocus;
   late FocusNode _speedFocus;
   late FocusNode _coefficientFocus;
+  late FocusNode _townNameFocus;
 
   @override
   void initState() {
@@ -33,10 +36,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _weightKg = settings.weightKg;
     _speedKmh = settings.defaultSpeedKmh;
     _coefficient = settings.energyCoefficient;
+    _townName = settings.townName;
 
     _weightController = TextEditingController(text: _weightKg.toStringAsFixed(0));
     _speedController = TextEditingController(text: _speedKmh.toStringAsFixed(1));
     _coefficientController = TextEditingController(text: _coefficient.toStringAsFixed(4));
+    _townNameController = TextEditingController(text: _townName);
     _weightFocus = FocusNode()..addListener(() {
       if (!_weightFocus.hasFocus) _applyWeightText();
     });
@@ -46,6 +51,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _coefficientFocus = FocusNode()..addListener(() {
       if (!_coefficientFocus.hasFocus) _applyCoefficientText();
     });
+    _townNameFocus = FocusNode()..addListener(() {
+      if (!_townNameFocus.hasFocus) _applyTownNameText();
+    });
   }
 
   @override
@@ -53,9 +61,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _weightController.dispose();
     _speedController.dispose();
     _coefficientController.dispose();
+    _townNameController.dispose();
     _weightFocus.dispose();
     _speedFocus.dispose();
     _coefficientFocus.dispose();
+    _townNameFocus.dispose();
     super.dispose();
   }
 
@@ -95,11 +105,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _coefficientController.text = clamped.toStringAsFixed(4);
   }
 
+  void _applyTownNameText() {
+    final trimmed = _townNameController.text.trim();
+    final next = trimmed.isEmpty ? 'わたしの町' : trimmed;
+    setState(() => _townName = next);
+    _townNameController.text = next;
+  }
+
   Future<void> _save() async {
     final provider = context.read<SettingsProvider>();
     await provider.updateWeight(_weightKg);
     await provider.updateSpeed(_speedKmh);
     await provider.updateCoefficient(_coefficient);
+    await provider.updateTownName(_townName);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('保存しました')),
@@ -226,6 +244,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icons.landscape,
             title: '町の表示',
             children: [
+              _LabeledField(
+                label: '町の名前',
+                unit: '',
+                controller: _townNameController,
+                focusNode: _townNameFocus,
+                keyboardType: TextInputType.text,
+                onSubmitted: (_) => _applyTownNameText(),
+                textAlign: TextAlign.left,
+                width: 180,
+              ),
+              const SizedBox(height: 8),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('町の天気演出'),
@@ -308,6 +337,8 @@ class _LabeledField extends StatelessWidget {
   final FocusNode focusNode;
   final TextInputType keyboardType;
   final ValueChanged<String> onSubmitted;
+  final TextAlign textAlign;
+  final double width;
 
   const _LabeledField({
     required this.label,
@@ -316,6 +347,8 @@ class _LabeledField extends StatelessWidget {
     required this.focusNode,
     required this.keyboardType,
     required this.onSubmitted,
+    this.textAlign = TextAlign.right,
+    this.width = 100,
   });
 
   @override
@@ -325,12 +358,12 @@ class _LabeledField extends StatelessWidget {
         Text(label),
         const Spacer(),
         SizedBox(
-          width: 100,
+          width: width,
           child: TextField(
             controller: controller,
             focusNode: focusNode,
             keyboardType: keyboardType,
-            textAlign: TextAlign.right,
+            textAlign: textAlign,
             decoration: InputDecoration(
               suffixText: unit,
               isDense: true,

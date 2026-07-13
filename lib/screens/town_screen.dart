@@ -42,6 +42,7 @@ class _TownScreenState extends State<TownScreen> with TickerProviderStateMixin {
   Timer? _constructionClearTimer;
   DateTime? _lastHandledConstructionAt;
   ConstructionEvent? _activeConstruction;
+  bool _screenshotMode = false;
 
   @override
   void initState() {
@@ -233,7 +234,10 @@ class _TownScreenState extends State<TownScreen> with TickerProviderStateMixin {
       weather: weather,
       season: season,
     );
+    final townName = settingsProvider.settings.townName.trim();
+    final displayTownName = townName.isEmpty ? '町' : townName;
     final weatherFxEnabled = settingsProvider.settings.townWeatherFxEnabled;
+    final firstRocketDate = townProvider.firstRocketLaunchDate;
     final pendingConstruction = townProvider.pendingConstructionEvent;
     if (pendingConstruction != null &&
         _lastHandledConstructionAt != pendingConstruction.createdAt) {
@@ -251,7 +255,20 @@ class _TownScreenState extends State<TownScreen> with TickerProviderStateMixin {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('町')),
+      appBar: AppBar(
+        title: Text(displayTownName),
+        actions: [
+          IconButton(
+            tooltip: 'スクリーンショットモード',
+            onPressed: () {
+              setState(() => _screenshotMode = !_screenshotMode);
+            },
+            icon: Icon(
+              _screenshotMode ? Icons.visibility_off : Icons.photo_camera,
+            ),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
@@ -277,98 +294,119 @@ class _TownScreenState extends State<TownScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 16),
           Center(
-            child: Text(
-              level == 0 ? stage.name : '${stage.name}（建物 $level 棟）',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            child: Column(
+              children: [
+                Text(
+                  displayTownName,
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  level == 0 ? stage.name : '${stage.name}（建物 $level 棟）',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  BatteryStockDisplay(count: pendingBatteries),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'ストック: $pendingBatteries 個',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(64, 40),
-                    ),
-                    onPressed: pendingBatteries == 0 ? null : _useStock,
-                    child: const Text('使う'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (isFinalStage) ...[
-            const SizedBox(height: 4),
-            Center(
-              child: Text(
-                '🚀 ロケット発射回数: $launches',
-                style: TextStyle(color: colorScheme.outline),
-              ),
-            ),
-          ],
-          if (nextStage != null) ...[
-            const SizedBox(height: 16),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                value: (level - stage.minLevel) /
-                    (nextStage.minLevel - stage.minLevel),
-                minHeight: 8,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Center(
-              child: Text(
-                '次は「${nextStage.name}」まであと ${nextStage.minLevel - level} 棟',
-                style: TextStyle(fontSize: 12, color: colorScheme.outline),
+          if (!_screenshotMode && firstRocketDate != null) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Chip(
+                avatar: const Icon(Icons.rocket_launch, size: 18),
+                label: Text('初ロケット: $firstRocketDate'),
               ),
             ),
           ],
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _StatChip(
-                  icon: Icons.groups,
-                  label: '人口',
-                  value: '${townProvider.population}人',
+          if (!_screenshotMode) ...[
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    BatteryStockDisplay(count: pendingBatteries),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'ストック: $pendingBatteries 個',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(64, 40),
+                      ),
+                      onPressed: pendingBatteries == 0 ? null : _useStock,
+                      child: const Text('使う'),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _StatChip(
-                  icon: Icons.military_tech,
-                  label: '文明スコア',
-                  value: '${townProvider.civilizationScore}',
+            ),
+            if (isFinalStage) ...[
+              const SizedBox(height: 4),
+              Center(
+                child: Text(
+                  '🚀 ロケット発射回数: $launches',
+                  style: TextStyle(color: colorScheme.outline),
                 ),
               ),
             ],
-          ),
-          if (buildingCounts.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            Text('建設済みの建物', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: buildingCounts.entries.map((entry) {
-                final def = BuildingDefinitions.of(entry.key);
-                return Chip(
-                  avatar: Icon(def.icon, size: 18),
-                  label: Text('${def.displayName} ×${entry.value}'),
-                );
-              }).toList(),
+            if (nextStage != null) ...[
+              const SizedBox(height: 16),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: (level - stage.minLevel) /
+                      (nextStage.minLevel - stage.minLevel),
+                  minHeight: 8,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Center(
+                child: Text(
+                  '次は「${nextStage.name}」まであと ${nextStage.minLevel - level} 棟',
+                  style: TextStyle(fontSize: 12, color: colorScheme.outline),
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _StatChip(
+                    icon: Icons.groups,
+                    label: '人口',
+                    value: '${townProvider.population}人',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _StatChip(
+                    icon: Icons.military_tech,
+                    label: '文明スコア',
+                    value: '${townProvider.civilizationScore}',
+                  ),
+                ),
+              ],
             ),
+            if (buildingCounts.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              Text('建設済みの建物', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: buildingCounts.entries.map((entry) {
+                  final def = BuildingDefinitions.of(entry.key);
+                  return Chip(
+                    avatar: Icon(def.icon, size: 18),
+                    label: Text('${def.displayName} ×${entry.value}'),
+                  );
+                }).toList(),
+              ),
+            ],
           ],
         ],
       ),
