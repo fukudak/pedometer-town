@@ -38,4 +38,43 @@ void main() {
       );
     });
   });
+
+  group('TownAtmosphere.residentDisplayCount', () {
+    test('住宅数を上限8でクランプする', () {
+      expect(
+        TownAtmosphere.residentDisplayCount(
+          houseCount: 12,
+          timeOfDay: TownTimeOfDay.day,
+        ),
+        8,
+      );
+    });
+
+    test('住宅0は常に0人', () {
+      expect(
+        TownAtmosphere.residentDisplayCount(
+          houseCount: 0,
+          timeOfDay: TownTimeOfDay.day,
+        ),
+        0,
+      );
+    });
+
+    test('夜は住民数が半減し最大3人', () {
+      expect(
+        TownAtmosphere.residentDisplayCount(
+          houseCount: 8,
+          timeOfDay: TownTimeOfDay.night,
+        ),
+        3,
+      );
+      expect(
+        TownAtmosphere.residentDisplayCount(
+          houseCount: 5,
+          timeOfDay: TownTimeOfDay.night,
+        ),
+        2,
+      );
+    });
+  });
 }

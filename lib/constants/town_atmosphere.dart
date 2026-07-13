@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'town_stages.dart';
@@ -78,4 +79,16 @@ class TownAtmosphere {
   }
 
   static IconData stageIcon(TownStage stage) => stage.icon ?? Icons.landscape;
+
+  static int residentDisplayCount({
+    required int houseCount,
+    required TownTimeOfDay timeOfDay,
+    int maxResidents = 8,
+  }) {
+    final base = math.min(maxResidents, math.max(0, houseCount));
+    if (timeOfDay == TownTimeOfDay.night) {
+      return math.min(3, base ~/ 2);
+    }
+    return base;
+  }
 }

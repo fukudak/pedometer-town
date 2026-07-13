@@ -15,6 +15,7 @@ import '../domain/models/town_state.dart';
 import '../providers/energy_provider.dart';
 import '../providers/town_provider.dart';
 import '../widgets/battery_stock_display.dart';
+import '../widgets/town/town_residents.dart';
 
 class TownScreen extends StatefulWidget {
   final DateTime Function() now;
@@ -463,6 +464,12 @@ class _TownGridMap extends StatelessWidget {
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
+                  Positioned.fill(
+                    child: TownResidentsOverlay(
+                      town: town,
+                      timeOfDay: timeOfDay,
+                    ),
+                  ),
                   if (building != null)
                     Center(
                       child: Transform.scale(
