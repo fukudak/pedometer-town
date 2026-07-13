@@ -5,6 +5,7 @@ import '../providers/energy_provider.dart';
 import '../services/health_service.dart';
 import '../widgets/battery_stock_display.dart';
 import 'history_screen.dart';
+import 'how_to_play_screen.dart';
 import 'settings_screen.dart';
 import 'town_screen.dart';
 
@@ -203,6 +204,50 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             onPressed: () => _sync(context),
             icon: const Icon(Icons.sync),
             label: const Text('同期'),
+          ),
+          const SizedBox(height: 24),
+          Text('メニュー', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const TownScreen()),
+                  ),
+                  icon: const Icon(Icons.location_city),
+                  label: const Text('町'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                  ),
+                  icon: const Icon(Icons.history),
+                  label: const Text('履歴'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                  ),
+                  icon: const Icon(Icons.settings),
+                  label: const Text('設定'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const HowToPlayScreen()),
+            ),
+            icon: const Icon(Icons.help_outline),
+            label: const Text('遊び方'),
           ),
         ],
       ),
