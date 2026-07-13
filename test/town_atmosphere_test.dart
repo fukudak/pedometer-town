@@ -77,4 +77,68 @@ void main() {
       );
     });
   });
+
+  group('TownAtmosphere.weatherOf', () {
+    test('同じ日付は常に同じ天気', () {
+      final date = DateTime(2026, 7, 13);
+      expect(TownAtmosphere.weatherOf(date), TownAtmosphere.weatherOf(date));
+    });
+
+    test('日付が違えば結果が変わりうる', () {
+      final a = TownAtmosphere.weatherOf(DateTime(2026, 1, 1));
+      final b = TownAtmosphere.weatherOf(DateTime(2026, 1, 2));
+      expect(a, isA<TownWeather>());
+      expect(b, isA<TownWeather>());
+    });
+  });
+
+  group('TownAtmosphere.seasonOf', () {
+    test('春は3〜5月', () {
+      expect(
+        TownAtmosphere.seasonOf(DateTime(2026, 3, 1)),
+        TownSeason.spring,
+      );
+      expect(
+        TownAtmosphere.seasonOf(DateTime(2026, 5, 31)),
+        TownSeason.spring,
+      );
+    });
+
+    test('夏は6〜8月', () {
+      expect(
+        TownAtmosphere.seasonOf(DateTime(2026, 7, 13)),
+        TownSeason.summer,
+      );
+    });
+
+    test('秋は9〜11月', () {
+      expect(
+        TownAtmosphere.seasonOf(DateTime(2026, 10, 1)),
+        TownSeason.autumn,
+      );
+    });
+
+    test('冬は12〜2月', () {
+      expect(
+        TownAtmosphere.seasonOf(DateTime(2026, 12, 1)),
+        TownSeason.winter,
+      );
+      expect(
+        TownAtmosphere.seasonOf(DateTime(2026, 2, 28)),
+        TownSeason.winter,
+      );
+    });
+  });
+
+  group('TownAtmosphere.applyWeatherAndSeason', () {
+    test('夏はタイルがより緑になる', () {
+      final base = TownAtmosphere.paletteOf(TownTimeOfDay.day);
+      final adjusted = TownAtmosphere.applyWeatherAndSeason(
+        base,
+        weather: TownWeather.clear,
+        season: TownSeason.summer,
+      );
+      expect(adjusted.tileColor, isNot(equals(base.tileColor)));
+    });
+  });
 }

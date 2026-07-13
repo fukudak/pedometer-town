@@ -5,11 +5,13 @@ class PlayerSettings {
   final double weightKg;
   final double defaultSpeedKmh;
   final double energyCoefficient;
+  final bool townWeatherFxEnabled;
 
   const PlayerSettings({
     this.weightKg = GameConstants.defaultWeightKg,
     this.defaultSpeedKmh = GameConstants.defaultSpeedKmh,
     this.energyCoefficient = GameConstants.energyCoefficient,
+    this.townWeatherFxEnabled = true,
   });
 
   static bool isValidWeight(double weightKg) =>
@@ -28,11 +30,14 @@ class PlayerSettings {
     double? weightKg,
     double? defaultSpeedKmh,
     double? energyCoefficient,
+    bool? townWeatherFxEnabled,
   }) {
     return PlayerSettings(
       weightKg: weightKg ?? this.weightKg,
       defaultSpeedKmh: defaultSpeedKmh ?? this.defaultSpeedKmh,
       energyCoefficient: energyCoefficient ?? this.energyCoefficient,
+      townWeatherFxEnabled:
+          townWeatherFxEnabled ?? this.townWeatherFxEnabled,
     );
   }
 }

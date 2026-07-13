@@ -24,16 +24,22 @@ void main() {
       final settings = storage.loadPlayerSettings();
       expect(settings.weightKg, GameConstants.defaultWeightKg);
       expect(settings.defaultSpeedKmh, GameConstants.defaultSpeedKmh);
+      expect(settings.townWeatherFxEnabled, isTrue);
     });
 
     test('保存した値が読み込める', () async {
       final storage = LocalStorage(await SharedPreferences.getInstance());
       await storage.savePlayerSettings(
-        const PlayerSettings(weightKg: 84, defaultSpeedKmh: 6.0),
+        const PlayerSettings(
+          weightKg: 84,
+          defaultSpeedKmh: 6.0,
+          townWeatherFxEnabled: false,
+        ),
       );
       final loaded = storage.loadPlayerSettings();
       expect(loaded.weightKg, 84);
       expect(loaded.defaultSpeedKmh, 6.0);
+      expect(loaded.townWeatherFxEnabled, isFalse);
     });
   });
 

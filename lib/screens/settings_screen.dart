@@ -221,6 +221,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          _SettingsSection(
+            icon: Icons.landscape,
+            title: '町の表示',
+            children: [
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('町の天気演出'),
+                subtitle: const Text('天気と季節のパーティクル表示'),
+                value: context.watch<SettingsProvider>().settings.townWeatherFxEnabled,
+                onChanged: (value) {
+                  context.read<SettingsProvider>().updateTownWeatherFxEnabled(value);
+                },
+              ),
+            ],
+          ),
           const SizedBox(height: 24),
           FilledButton(
             onPressed: _save,

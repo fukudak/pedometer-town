@@ -48,4 +48,11 @@ class SettingsProvider extends ChangeNotifier {
     await _storage.savePlayerSettings(_settings);
     notifyListeners();
   }
+
+  /// 町の天気演出の有効／無効を更新する。
+  Future<void> updateTownWeatherFxEnabled(bool enabled) async {
+    _settings = _settings.copyWith(townWeatherFxEnabled: enabled);
+    await _storage.savePlayerSettings(_settings);
+    notifyListeners();
+  }
 }

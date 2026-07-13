@@ -13,9 +13,11 @@ import '../domain/models/building.dart';
 import '../domain/models/construction_event.dart';
 import '../domain/models/town_state.dart';
 import '../providers/energy_provider.dart';
+import '../providers/settings_provider.dart';
 import '../providers/town_provider.dart';
 import '../widgets/battery_stock_display.dart';
 import '../widgets/town/town_residents.dart';
+import '../widgets/town/weather_overlay.dart';
 
 class TownScreen extends StatefulWidget {
   final DateTime Function() now;
@@ -213,6 +215,7 @@ class _TownScreenState extends State<TownScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final townProvider = context.watch<TownProvider>();
     final energyProvider = context.watch<EnergyProvider>();
+    final settingsProvider = context.watch<SettingsProvider>();
     final pendingBatteries = energyProvider.pendingBatteries;
     final town = townProvider.town;
     final colorScheme = Theme.of(context).colorScheme;
@@ -221,8 +224,16 @@ class _TownScreenState extends State<TownScreen> with TickerProviderStateMixin {
     final nextStage = TownStages.next(level);
     final isFinalStage = TownStages.isAtFinalStage(level);
     final launches = TownStages.rocketLaunchCount(level);
-    final timeOfDay = TownAtmosphere.timeOfDay(widget.now());
-    final palette = TownAtmosphere.paletteOf(timeOfDay);
+    final now = widget.now();
+    final timeOfDay = TownAtmosphere.timeOfDay(now);
+    final weather = TownAtmosphere.weatherOf(now);
+    final season = TownAtmosphere.seasonOf(now);
+    final palette = TownAtmosphere.applyWeatherAndSeason(
+      TownAtmosphere.paletteOf(timeOfDay),
+      weather: weather,
+      season: season,
+    );
+    final weatherFxEnabled = settingsProvider.settings.townWeatherFxEnabled;
     final pendingConstruction = townProvider.pendingConstructionEvent;
     if (pendingConstruction != null &&
         _lastHandledConstructionAt != pendingConstruction.createdAt) {
@@ -254,6 +265,9 @@ class _TownScreenState extends State<TownScreen> with TickerProviderStateMixin {
               skyColor: palette.skyColor,
               tileColor: palette.tileColor,
               timeOfDay: timeOfDay,
+              weather: weather,
+              season: season,
+              weatherFxEnabled: weatherFxEnabled,
               isFinalStage: isFinalStage,
               constructionEvent: _activeConstruction,
               constructionScale: Tween<double>(begin: 0.3, end: 1.0)
@@ -407,6 +421,9 @@ class _TownGridMap extends StatelessWidget {
   final Color skyColor;
   final Color tileColor;
   final TownTimeOfDay timeOfDay;
+  final TownWeather weather;
+  final TownSeason season;
+  final bool weatherFxEnabled;
   final bool isFinalStage;
   final ConstructionEvent? constructionEvent;
   final double constructionScale;
@@ -417,6 +434,9 @@ class _TownGridMap extends StatelessWidget {
     required this.skyColor,
     required this.tileColor,
     required this.timeOfDay,
+    required this.weather,
+    required this.season,
+    required this.weatherFxEnabled,
     required this.isFinalStage,
     required this.constructionEvent,
     required this.constructionScale,
@@ -434,89 +454,100 @@ class _TownGridMap extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
         ),
         padding: const EdgeInsets.all(6),
-        child: GridView.builder(
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: GameConstants.townGridSize,
-            crossAxisSpacing: 4,
-            mainAxisSpacing: 4,
-          ),
-          itemCount: GameConstants.townGridSize * GameConstants.townGridSize,
-          itemBuilder: (context, index) {
-            final x = index % GameConstants.townGridSize;
-            final y = index ~/ GameConstants.townGridSize;
-            final building = town.buildingAt(x, y);
-            final isConstructedCell = constructionEvent != null &&
-                constructionEvent!.x == x &&
-                constructionEvent!.y == y;
-            return Container(
-              decoration: BoxDecoration(
-                color: tileColor,
-                borderRadius: BorderRadius.circular(6),
-                border: isConstructedCell
-                    ? Border.all(
-                        color: Colors.amberAccent,
-                        width: 2.0,
-                      )
-                    : null,
+        child: Stack(
+          children: [
+            GridView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: GameConstants.townGridSize,
+                crossAxisSpacing: 4,
+                mainAxisSpacing: 4,
               ),
-              alignment: Alignment.center,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned.fill(
-                    child: TownResidentsOverlay(
-                      town: town,
-                      timeOfDay: timeOfDay,
-                    ),
+              itemCount: GameConstants.townGridSize * GameConstants.townGridSize,
+              itemBuilder: (context, index) {
+                final x = index % GameConstants.townGridSize;
+                final y = index ~/ GameConstants.townGridSize;
+                final building = town.buildingAt(x, y);
+                final isConstructedCell = constructionEvent != null &&
+                    constructionEvent!.x == x &&
+                    constructionEvent!.y == y;
+                return Container(
+                  decoration: BoxDecoration(
+                    color: tileColor,
+                    borderRadius: BorderRadius.circular(6),
+                    border: isConstructedCell
+                        ? Border.all(
+                            color: Colors.amberAccent,
+                            width: 2.0,
+                          )
+                        : null,
                   ),
-                  if (building != null)
-                    Center(
-                      child: Transform.scale(
-                        scale: isConstructedCell ? constructionScale : 1.0,
-                        child: Opacity(
-                          opacity: _iconOpacity(building),
-                          child: Icon(
-                            BuildingDefinitions.of(building.type).icon,
-                            color: colorScheme.onSurface,
-                          ),
+                  alignment: Alignment.center,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned.fill(
+                        child: TownResidentsOverlay(
+                          town: town,
+                          timeOfDay: timeOfDay,
                         ),
                       ),
-                    ),
-                  if (building?.type == BuildingType.house &&
-                      (timeOfDay == TownTimeOfDay.night ||
-                          timeOfDay == TownTimeOfDay.evening))
-                    const Positioned(
-                      right: 6,
-                      top: 6,
-                      child: Icon(Icons.light_mode, size: 10, color: Color(0xFFFFF176)),
-                    ),
-                  if (building?.type == BuildingType.park &&
-                      timeOfDay == TownTimeOfDay.night)
-                    const Positioned(
-                      left: 5,
-                      bottom: 5,
-                      child: Icon(Icons.circle, size: 7, color: Color(0xFFFFF59D)),
-                    ),
-                  if (isFinalStage && building?.type == BuildingType.powerPlant)
-                    Positioned(
-                      right: 4,
-                      bottom: 4,
-                      child: Opacity(
-                        opacity: 0.35 + (0.65 * pulseValue),
-                        child: const Icon(Icons.circle, size: 8, color: Colors.redAccent),
-                      ),
-                    ),
-                  if (isConstructedCell)
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: _SparkleOverlay(progress: pulseValue),
-                      ),
-                    ),
-                ],
+                      if (building != null)
+                        Center(
+                          child: Transform.scale(
+                            scale: isConstructedCell ? constructionScale : 1.0,
+                            child: Opacity(
+                              opacity: _iconOpacity(building),
+                              child: Icon(
+                                BuildingDefinitions.of(building.type).icon,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (building?.type == BuildingType.house &&
+                          (timeOfDay == TownTimeOfDay.night ||
+                              timeOfDay == TownTimeOfDay.evening))
+                        const Positioned(
+                          right: 6,
+                          top: 6,
+                          child: Icon(Icons.light_mode, size: 10, color: Color(0xFFFFF176)),
+                        ),
+                      if (building?.type == BuildingType.park &&
+                          timeOfDay == TownTimeOfDay.night)
+                        const Positioned(
+                          left: 5,
+                          bottom: 5,
+                          child: Icon(Icons.circle, size: 7, color: Color(0xFFFFF59D)),
+                        ),
+                      if (isFinalStage && building?.type == BuildingType.powerPlant)
+                        Positioned(
+                          right: 4,
+                          bottom: 4,
+                          child: Opacity(
+                            opacity: 0.35 + (0.65 * pulseValue),
+                            child: const Icon(Icons.circle, size: 8, color: Colors.redAccent),
+                          ),
+                        ),
+                      if (isConstructedCell)
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: _SparkleOverlay(progress: pulseValue),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            if (weatherFxEnabled)
+              Positioned.fill(
+                child: TownWeatherOverlay(
+                  weather: weather,
+                  season: season,
+                ),
               ),
-            );
-          },
+          ],
         ),
       ),
     );

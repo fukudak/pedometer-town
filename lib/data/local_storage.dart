@@ -36,6 +36,7 @@ class LocalStorage {
   static const _keyPendingBatteries = 'pending_batteries';
   static const _keyTownCelebratedStageIds = 'town_celebrated_stage_ids';
   static const _keyTownStageEvents = 'town_stage_events';
+  static const _keyTownWeatherFx = 'town_weather_fx_enabled';
 
   PlayerSettings loadPlayerSettings() {
     return PlayerSettings(
@@ -44,6 +45,7 @@ class LocalStorage {
           _prefs.getDouble(_keySpeed) ?? GameConstants.defaultSpeedKmh,
       energyCoefficient:
           _prefs.getDouble(_keyCoefficient) ?? GameConstants.energyCoefficient,
+      townWeatherFxEnabled: _prefs.getBool(_keyTownWeatherFx) ?? true,
     );
   }
 
@@ -51,6 +53,7 @@ class LocalStorage {
     await _prefs.setDouble(_keyWeight, settings.weightKg);
     await _prefs.setDouble(_keySpeed, settings.defaultSpeedKmh);
     await _prefs.setDouble(_keyCoefficient, settings.energyCoefficient);
+    await _prefs.setBool(_keyTownWeatherFx, settings.townWeatherFxEnabled);
   }
 
   /// 蓄電池容量は建物効果から都度算出するため永続化しない（容量は建物リストが真実の源）。

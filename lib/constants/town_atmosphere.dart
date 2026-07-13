@@ -5,6 +5,10 @@ import 'town_stages.dart';
 
 enum TownTimeOfDay { morning, day, evening, night }
 
+enum TownWeather { clear, cloudy, rainy }
+
+enum TownSeason { spring, summer, autumn, winter }
+
 class TownAtmospherePalette {
   final Color skyColor;
   final Color tileColor;
@@ -49,6 +53,51 @@ class TownAtmosphere {
           tileColor: Color(0xFF33691E),
         );
     }
+  }
+
+  /// 日付シード（YYYYMMDD）から天気を決定する。同日は常に同じ結果。
+  static TownWeather weatherOf(DateTime date) {
+    final seed = date.year * 10000 + date.month * 100 + date.day;
+    final bucket = seed % 100;
+    if (bucket < 50) return TownWeather.clear;
+    if (bucket < 80) return TownWeather.cloudy;
+    return TownWeather.rainy;
+  }
+
+  /// 月から季節を決定する。
+  static TownSeason seasonOf(DateTime date) {
+    final month = date.month;
+    if (month >= 3 && month <= 5) return TownSeason.spring;
+    if (month >= 6 && month <= 8) return TownSeason.summer;
+    if (month >= 9 && month <= 11) return TownSeason.autumn;
+    return TownSeason.winter;
+  }
+
+  /// 天気・季節に応じてパレットを微調整する。
+  static TownAtmospherePalette applyWeatherAndSeason(
+    TownAtmospherePalette base, {
+    required TownWeather weather,
+    required TownSeason season,
+  }) {
+    var sky = base.skyColor;
+    var tile = base.tileColor;
+
+    switch (weather) {
+      case TownWeather.clear:
+        break;
+      case TownWeather.cloudy:
+        sky = Color.lerp(sky, const Color(0xFF90A4AE), 0.28)!;
+        tile = Color.lerp(tile, const Color(0xFF7CB342), 0.08)!;
+      case TownWeather.rainy:
+        sky = Color.lerp(sky, const Color(0xFF546E7A), 0.45)!;
+        tile = Color.lerp(tile, const Color(0xFF558B2F), 0.12)!;
+    }
+
+    if (season == TownSeason.summer) {
+      tile = Color.lerp(tile, const Color(0xFF33691E), 0.18)!;
+    }
+
+    return TownAtmospherePalette(skyColor: sky, tileColor: tile);
   }
 
   static ({String title, String description}) stageStory(String stageId) {
