@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../constants/town_atmosphere.dart';
+import '../constants/companion_atmosphere.dart';
 import '../domain/models/daily_step_record.dart';
 import '../providers/history_provider.dart';
 
@@ -36,13 +36,13 @@ class HistoryScreen extends StatelessWidget {
     final historyProvider = context.watch<HistoryProvider>();
     final List<DailyStepRecord> records = historyProvider.loadHistory();
     final fullBatteryEvents = historyProvider.loadFullBatteryEvents();
-    final rocketLaunchEvents = historyProvider.loadRocketLaunchEvents();
+    final sparkleEvents = historyProvider.loadSparkleEvents();
     final achievementEvents = historyProvider.loadAchievementEvents();
-    final stageEvents = historyProvider.loadTownStageEvents();
+    final stageEvents = historyProvider.loadCompanionStageEvents();
     final colorScheme = Theme.of(context).colorScheme;
     final isEmpty = records.isEmpty &&
         fullBatteryEvents.isEmpty &&
-        rocketLaunchEvents.isEmpty &&
+        sparkleEvents.isEmpty &&
         achievementEvents.isEmpty &&
         stageEvents.isEmpty;
 
@@ -92,7 +92,7 @@ class HistoryScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                 ],
                 if (stageEvents.isNotEmpty) ...[
-                  Text('🌆 町の記録', style: Theme.of(context).textTheme.titleMedium),
+                  Text('🌟 相棒の記録', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
                   ...stageEvents.map(
                     (event) => Card(
@@ -101,7 +101,7 @@ class HistoryScreen extends StatelessWidget {
                         leading: CircleAvatar(
                           backgroundColor: colorScheme.primaryContainer,
                           child: Icon(
-                            TownAtmosphere.stageIcon(event.stage),
+                            CompanionAtmosphere.stageIcon(event.stage),
                             size: 18,
                             color: colorScheme.onPrimaryContainer,
                           ),
@@ -114,25 +114,25 @@ class HistoryScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                 ],
-                if (rocketLaunchEvents.isNotEmpty) ...[
+                if (sparkleEvents.isNotEmpty) ...[
                   Text(
-                    'ロケット発射履歴',
+                    'きらめきタイム履歴',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
-                  ...rocketLaunchEvents.map(
+                  ...sparkleEvents.map(
                     (event) => Card(
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: colorScheme.primaryContainer,
                           child: Icon(
-                            Icons.rocket_launch,
+                            Icons.auto_awesome,
                             size: 18,
                             color: colorScheme.onPrimaryContainer,
                           ),
                         ),
-                        title: Text('ロケット #${event.number} 発射'),
+                        title: Text('きらめき #${event.number}'),
                         subtitle: Text(_formatDate(event.date)),
                       ),
                     ),

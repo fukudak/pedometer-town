@@ -18,16 +18,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late double _weightKg;
   late double _speedKmh;
   late double _coefficient;
-  late String _townName;
+  late String _companionName;
 
   late TextEditingController _weightController;
   late TextEditingController _speedController;
   late TextEditingController _coefficientController;
-  late TextEditingController _townNameController;
+  late TextEditingController _companionNameController;
   late FocusNode _weightFocus;
   late FocusNode _speedFocus;
   late FocusNode _coefficientFocus;
-  late FocusNode _townNameFocus;
+  late FocusNode _companionNameFocus;
 
   @override
   void initState() {
@@ -36,12 +36,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _weightKg = settings.weightKg;
     _speedKmh = settings.defaultSpeedKmh;
     _coefficient = settings.energyCoefficient;
-    _townName = settings.townName;
+    _companionName = settings.companionName;
 
     _weightController = TextEditingController(text: _weightKg.toStringAsFixed(0));
     _speedController = TextEditingController(text: _speedKmh.toStringAsFixed(1));
     _coefficientController = TextEditingController(text: _coefficient.toStringAsFixed(4));
-    _townNameController = TextEditingController(text: _townName);
+    _companionNameController = TextEditingController(text: _companionName);
     _weightFocus = FocusNode()..addListener(() {
       if (!_weightFocus.hasFocus) _applyWeightText();
     });
@@ -51,8 +51,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _coefficientFocus = FocusNode()..addListener(() {
       if (!_coefficientFocus.hasFocus) _applyCoefficientText();
     });
-    _townNameFocus = FocusNode()..addListener(() {
-      if (!_townNameFocus.hasFocus) _applyTownNameText();
+    _companionNameFocus = FocusNode()..addListener(() {
+      if (!_companionNameFocus.hasFocus) _applyCompanionNameText();
     });
   }
 
@@ -61,11 +61,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _weightController.dispose();
     _speedController.dispose();
     _coefficientController.dispose();
-    _townNameController.dispose();
+    _companionNameController.dispose();
     _weightFocus.dispose();
     _speedFocus.dispose();
     _coefficientFocus.dispose();
-    _townNameFocus.dispose();
+    _companionNameFocus.dispose();
     super.dispose();
   }
 
@@ -105,11 +105,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _coefficientController.text = clamped.toStringAsFixed(4);
   }
 
-  void _applyTownNameText() {
-    final trimmed = _townNameController.text.trim();
-    final next = trimmed.isEmpty ? 'わたしの町' : trimmed;
-    setState(() => _townName = next);
-    _townNameController.text = next;
+  void _applyCompanionNameText() {
+    final trimmed = _companionNameController.text.trim();
+    setState(() => _companionName = trimmed);
+    _companionNameController.text = trimmed;
   }
 
   Future<void> _save() async {
@@ -117,7 +116,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await provider.updateWeight(_weightKg);
     await provider.updateSpeed(_speedKmh);
     await provider.updateCoefficient(_coefficient);
-    await provider.updateTownName(_townName);
+    await provider.updateCompanionName(_companionName);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('保存しました')),
@@ -241,27 +240,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 16),
           _SettingsSection(
-            icon: Icons.landscape,
-            title: '町の表示',
+            icon: Icons.pets,
+            title: '相棒の表示',
             children: [
               _LabeledField(
-                label: '町の名前',
+                label: '相棒の名前',
                 unit: '',
-                controller: _townNameController,
-                focusNode: _townNameFocus,
+                controller: _companionNameController,
+                focusNode: _companionNameFocus,
                 keyboardType: TextInputType.text,
-                onSubmitted: (_) => _applyTownNameText(),
+                onSubmitted: (_) => _applyCompanionNameText(),
                 textAlign: TextAlign.left,
                 width: 180,
               ),
               const SizedBox(height: 8),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('町の天気演出'),
+                title: const Text('背景の天気演出'),
                 subtitle: const Text('天気と季節のパーティクル表示'),
-                value: context.watch<SettingsProvider>().settings.townWeatherFxEnabled,
+                value: context.watch<SettingsProvider>().settings.companionWeatherFxEnabled,
                 onChanged: (value) {
-                  context.read<SettingsProvider>().updateTownWeatherFxEnabled(value);
+                  context.read<SettingsProvider>().updateCompanionWeatherFxEnabled(value);
                 },
               ),
             ],

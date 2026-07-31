@@ -33,9 +33,6 @@ class GameConstants {
   /// 蓄電池 初期蓄積量 (Wh)
   static const double initialBatteryStoredWh = 0.0;
 
-  /// 草原グリッドの一辺のマス数（建物の座標管理に使用。画面表示はしない）
-  static const int townGridSize = 5;
-
-  /// ロケット建造段階に到達後、何棟ごとに1回ロケットが発射されるか
-  static const int rocketLaunchInterval = 2;
+  /// 最終進化段階に到達後、何回給餌するごとに1回きらめきタイムが発生するか
+  static const int sparkleMomentInterval = 2;
 }

@@ -5,14 +5,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/game_constants.dart';
 import '../domain/models/achievement_event.dart';
 import '../domain/models/battery_state.dart';
-import '../domain/models/building.dart';
+import '../domain/models/companion_stage_event.dart';
+import '../domain/models/companion_state.dart';
 import '../domain/models/daily_step_record.dart';
 import '../domain/models/full_battery_event.dart';
 import '../domain/models/player_settings.dart';
-import '../domain/models/rocket_launch_event.dart';
-import '../domain/models/town_stage_event.dart';
-import '../domain/models/town_state.dart';
-import '../domain/town_logic.dart';
+import '../domain/models/sparkle_event.dart';
+import '../domain/companion_logic.dart';
 
 /// SharedPreferences ラッパー（全モデルの save / load）
 class LocalStorage {
@@ -24,20 +23,24 @@ class LocalStorage {
   static const _keySpeed = 'player_default_speed_kmh';
   static const _keyCoefficient = 'player_energy_coefficient';
   static const _keyBatteryStored = 'battery_stored_wh';
-  static const _keyTownBuildings = 'town_buildings';
+  static const _keyCompanionMealCount = 'companion_meal_count';
+  static const _keyCompanionBoosterCount = 'companion_booster_count';
+  static const _keyCompanionToyCount = 'companion_toy_count';
+  static const _keyLegacyTownBuildings = 'town_buildings';
   static const _dailyRecordPrefix = 'daily_record_';
   static const _keyLastSyncedAt = 'last_synced_at';
   static const _keyLifetimeEnergyWh = 'lifetime_energy_wh';
   static const _keyAndroidBaselineDate = 'health_android_baseline_date';
   static const _keyAndroidBaselineSteps = 'health_android_baseline_steps';
   static const _keyFullBatteryEvents = 'full_battery_events';
-  static const _keyRocketLaunchEvents = 'rocket_launch_events';
-  static const _keyAchievementEvents = 'achievement_events';
+  static const _keySparkleEvents = 'sparkle_events';
+  static const _keyAchievementEvents = 'companion_achievement_events';
   static const _keyPendingBatteries = 'pending_batteries';
-  static const _keyTownCelebratedStageIds = 'town_celebrated_stage_ids';
-  static const _keyTownStageEvents = 'town_stage_events';
-  static const _keyTownWeatherFx = 'town_weather_fx_enabled';
-  static const _keyTownName = 'town_name';
+  static const _keyCelebratedStageIds = 'companion_celebrated_stage_ids';
+  static const _keyCompanionStageEvents = 'companion_stage_events';
+  static const _keyCompanionWeatherFx = 'companion_weather_fx_enabled';
+  static const _keyCompanionName = 'companion_name';
+  static const _keyCompanionLastFedAt = 'companion_last_fed_at';
 
   PlayerSettings loadPlayerSettings() {
     return PlayerSettings(
@@ -46,8 +49,9 @@ class LocalStorage {
           _prefs.getDouble(_keySpeed) ?? GameConstants.defaultSpeedKmh,
       energyCoefficient:
           _prefs.getDouble(_keyCoefficient) ?? GameConstants.energyCoefficient,
-      townWeatherFxEnabled: _prefs.getBool(_keyTownWeatherFx) ?? true,
-      townName: _prefs.getString(_keyTownName) ?? 'わたしの町',
+      companionWeatherFxEnabled:
+          _prefs.getBool(_keyCompanionWeatherFx) ?? true,
+      companionName: _prefs.getString(_keyCompanionName) ?? '',
     );
   }
 
@@ -55,19 +59,20 @@ class LocalStorage {
     await _prefs.setDouble(_keyWeight, settings.weightKg);
     await _prefs.setDouble(_keySpeed, settings.defaultSpeedKmh);
     await _prefs.setDouble(_keyCoefficient, settings.energyCoefficient);
-    await _prefs.setBool(_keyTownWeatherFx, settings.townWeatherFxEnabled);
-    await _prefs.setString(_keyTownName, settings.townName);
+    await _prefs.setBool(
+        _keyCompanionWeatherFx, settings.companionWeatherFxEnabled);
+    await _prefs.setString(_keyCompanionName, settings.companionName);
   }
 
-  /// 蓄電池容量は建物効果から都度算出するため永続化しない（容量は建物リストが真実の源）。
-  /// 呼び出し元は事前に [loadTownState] で取得した buildings を渡すこと。
-  BatteryState loadBatteryState(List<Building> buildings) {
+  /// 蓄電池容量は相棒の給餌効果から都度算出するため永続化しない。
+  /// 呼び出し元は事前に [loadCompanionState] で取得した companion を渡すこと。
+  BatteryState loadBatteryState(CompanionState companion) {
     return BatteryState(
       storedWh: _prefs.getDouble(_keyBatteryStored) ??
           GameConstants.initialBatteryStoredWh,
-      capacityWh: TownLogic.effectiveCapacity(
+      capacityWh: CompanionLogic.effectiveCapacity(
         GameConstants.initialBatteryCapacityWh,
-        buildings,
+        companion,
       ),
     );
   }
@@ -76,16 +81,57 @@ class LocalStorage {
     await _prefs.setDouble(_keyBatteryStored, battery.storedWh);
   }
 
-  TownState loadTownState() {
-    final json = _prefs.getString(_keyTownBuildings);
-    if (json == null) {
-      return TownState.initial();
+  /// 相棒の状態を読み込む。種類別カウントが一つも保存されていない場合、
+  /// 旧「町の建物」データ（house/powerPlant/park）が残っていれば個数を引き継ぐ。
+  CompanionState loadCompanionState() {
+    final hasCompanionData = _prefs.containsKey(_keyCompanionMealCount) ||
+        _prefs.containsKey(_keyCompanionBoosterCount) ||
+        _prefs.containsKey(_keyCompanionToyCount);
+
+    if (!hasCompanionData) {
+      final migrated = _migrateFromLegacyTownBuildings();
+      if (migrated != null) return migrated;
+      return CompanionState.initial();
     }
-    return TownState.fromJson(jsonDecode(json) as List<dynamic>);
+
+    return CompanionState(
+      mealCount: _prefs.getInt(_keyCompanionMealCount) ?? 0,
+      boosterCount: _prefs.getInt(_keyCompanionBoosterCount) ?? 0,
+      toyCount: _prefs.getInt(_keyCompanionToyCount) ?? 0,
+    );
   }
 
-  Future<void> saveTownState(TownState town) async {
-    await _prefs.setString(_keyTownBuildings, jsonEncode(town.toJson()));
+  Future<void> saveCompanionState(CompanionState companion) async {
+    await _prefs.setInt(_keyCompanionMealCount, companion.mealCount);
+    await _prefs.setInt(_keyCompanionBoosterCount, companion.boosterCount);
+    await _prefs.setInt(_keyCompanionToyCount, companion.toyCount);
+  }
+
+  /// 旧バージョン（町ビルド）の建物リストを、種類別の給餌回数に変換する。
+  /// 座標・建設順は破棄し、種類ごとの個数のみを引き継ぐ。
+  CompanionState? _migrateFromLegacyTownBuildings() {
+    final json = _prefs.getString(_keyLegacyTownBuildings);
+    if (json == null) return null;
+
+    var mealCount = 0;
+    var boosterCount = 0;
+    var toyCount = 0;
+    for (final entry in jsonDecode(json) as List<dynamic>) {
+      final type = (entry as Map<String, dynamic>)['type'] as String;
+      switch (type) {
+        case 'house':
+          mealCount++;
+        case 'powerPlant':
+          boosterCount++;
+        case 'park':
+          toyCount++;
+      }
+    }
+    return CompanionState(
+      mealCount: mealCount,
+      boosterCount: boosterCount,
+      toyCount: toyCount,
+    );
   }
 
   DailyStepRecord loadDailyStepRecord(String date) {
@@ -174,18 +220,18 @@ class LocalStorage {
     );
   }
 
-  /// ロケットを発射した記録を、古い順に返す。
-  List<RocketLaunchEvent> loadRocketLaunchEvents() {
-    final json = _prefs.getString(_keyRocketLaunchEvents);
+  /// きらめきタイムが発生した記録を、古い順に返す。
+  List<SparkleEvent> loadSparkleEvents() {
+    final json = _prefs.getString(_keySparkleEvents);
     if (json == null) return [];
     return (jsonDecode(json) as List<dynamic>)
-        .map((e) => RocketLaunchEvent.fromJson(e as Map<String, dynamic>))
+        .map((e) => SparkleEvent.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
-  Future<void> saveRocketLaunchEvents(List<RocketLaunchEvent> events) async {
+  Future<void> saveSparkleEvents(List<SparkleEvent> events) async {
     await _prefs.setString(
-      _keyRocketLaunchEvents,
+      _keySparkleEvents,
       jsonEncode(events.map((e) => e.toJson()).toList()),
     );
   }
@@ -206,40 +252,50 @@ class LocalStorage {
     );
   }
 
-  /// 満タンになったがまだ街の発展に使われていない蓄電池の個数。
+  /// 満タンになったがまだ相棒に与えられていない蓄電池の個数。
   int loadPendingBatteries() => _prefs.getInt(_keyPendingBatteries) ?? 0;
 
   Future<void> savePendingBatteries(int count) async {
     await _prefs.setInt(_keyPendingBatteries, count);
   }
 
-  /// 発展段階の祝福を表示済みの stageId 一覧。
+  /// 進化段階の祝福を表示済みの stageId 一覧。
   /// 未設定（null）は「初回マイグレーション未実行」を意味する。
   List<String>? loadCelebratedStageIds() {
-    if (!_prefs.containsKey(_keyTownCelebratedStageIds)) return null;
-    return _prefs.getStringList(_keyTownCelebratedStageIds) ?? <String>[];
+    if (!_prefs.containsKey(_keyCelebratedStageIds)) return null;
+    return _prefs.getStringList(_keyCelebratedStageIds) ?? <String>[];
   }
 
   Future<void> saveCelebratedStageIds(List<String> stageIds) async {
     await _prefs.setStringList(
-      _keyTownCelebratedStageIds,
+      _keyCelebratedStageIds,
       stageIds.toSet().toList(),
     );
   }
 
-  /// 発展段階到達の履歴（古い順）。
-  List<TownStageEvent> loadTownStageEvents() {
-    final json = _prefs.getString(_keyTownStageEvents);
+  /// 進化段階到達の履歴（古い順）。
+  List<CompanionStageEvent> loadCompanionStageEvents() {
+    final json = _prefs.getString(_keyCompanionStageEvents);
     if (json == null) return [];
     return (jsonDecode(json) as List<dynamic>)
-        .map((e) => TownStageEvent.fromJson(e as Map<String, dynamic>))
+        .map((e) => CompanionStageEvent.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
-  Future<void> saveTownStageEvents(List<TownStageEvent> events) async {
+  Future<void> saveCompanionStageEvents(List<CompanionStageEvent> events) async {
     await _prefs.setString(
-      _keyTownStageEvents,
+      _keyCompanionStageEvents,
       jsonEncode(events.map((e) => e.toJson()).toList()),
     );
+  }
+
+  /// 最終給餌日時（きげん計算用）。まだ一度も給餌していない場合は null。
+  DateTime? loadCompanionLastFedAt() {
+    final iso = _prefs.getString(_keyCompanionLastFedAt);
+    return iso == null ? null : DateTime.tryParse(iso);
+  }
+
+  Future<void> saveCompanionLastFedAt(DateTime time) async {
+    await _prefs.setString(_keyCompanionLastFedAt, time.toIso8601String());
   }
 }
