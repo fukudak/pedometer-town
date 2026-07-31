@@ -4,10 +4,10 @@ import 'package:provider/provider.dart';
 import '../providers/energy_provider.dart';
 import '../services/health_service.dart';
 import '../widgets/battery_stock_display.dart';
+import 'companion_screen.dart';
 import 'history_screen.dart';
 import 'how_to_play_screen.dart';
 import 'settings_screen.dart';
-import 'town_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -73,9 +73,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         title: const Text('万歩計タウン'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.location_city),
+            icon: const Icon(Icons.pets),
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const TownScreen()),
+              MaterialPageRoute(builder: (_) => const CompanionScreen()),
             ),
           ),
           IconButton(
@@ -213,10 +213,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const TownScreen()),
+                    MaterialPageRoute(builder: (_) => const CompanionScreen()),
                   ),
-                  icon: const Icon(Icons.location_city),
-                  label: const Text('町'),
+                  icon: const Icon(Icons.pets),
+                  label: const Text('相棒'),
                 ),
               ),
               const SizedBox(width: 8),

@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pedometer_town/constants/town_atmosphere.dart';
-import 'package:pedometer_town/widgets/town/weather_overlay.dart';
+import 'package:pedometer_town/constants/companion_atmosphere.dart';
+import 'package:pedometer_town/widgets/companion/companion_weather_overlay.dart';
 
 Widget _weatherStack({required bool weatherFxEnabled}) {
   return Stack(
     children: [
       const Placeholder(),
       if (weatherFxEnabled)
-        const TownWeatherOverlay(
-          weather: TownWeather.rainy,
-          season: TownSeason.summer,
+        const CompanionWeatherOverlay(
+          weather: CompanionWeather.rainy,
+          season: CompanionSeason.summer,
         ),
     ],
   );
@@ -26,7 +26,7 @@ void main() {
       ),
     );
 
-    expect(find.byType(TownWeatherOverlay), findsNothing);
+    expect(find.byType(CompanionWeatherOverlay), findsNothing);
   });
 
   testWidgets('天気演出オン時は CustomPaint を描画する', (tester) async {
@@ -36,15 +36,15 @@ void main() {
           body: SizedBox(
             width: 120,
             height: 120,
-            child: TownWeatherOverlay(
-              weather: TownWeather.rainy,
-              season: TownSeason.summer,
+            child: CompanionWeatherOverlay(
+              weather: CompanionWeather.rainy,
+              season: CompanionSeason.summer,
             ),
           ),
         ),
       ),
     );
 
-    expect(find.byType(TownWeatherOverlay), findsOneWidget);
+    expect(find.byType(CompanionWeatherOverlay), findsOneWidget);
   });
 }

@@ -1,13 +1,13 @@
 import 'package:flutter/foundation.dart';
 
 import '../constants/achievements.dart';
-import '../constants/town_atmosphere.dart';
-import '../constants/town_stages.dart';
+import '../constants/companion_atmosphere.dart';
+import '../constants/companion_stages.dart';
 import '../data/local_storage.dart';
+import '../domain/models/companion_stage_event.dart';
 import '../domain/models/daily_step_record.dart';
 import '../domain/models/full_battery_event.dart';
-import '../domain/models/rocket_launch_event.dart';
-import '../domain/models/town_stage_event.dart';
+import '../domain/models/sparkle_event.dart';
 import 'energy_provider.dart';
 
 /// 解除済みの実績（履歴表示用に定義とイベントを結合したもの）
@@ -18,14 +18,14 @@ class UnlockedAchievement {
   const UnlockedAchievement({required this.achievement, required this.date});
 }
 
-/// 町の発展段階到達履歴（表示用に段階定義と結合したもの）
-class TownStageHistoryEntry {
-  final TownStage stage;
+/// 相棒の進化段階到達履歴（表示用に段階定義と結合したもの）
+class CompanionStageHistoryEntry {
+  final CompanionStage stage;
   final String title;
   final String description;
   final String date;
 
-  const TownStageHistoryEntry({
+  const CompanionStageHistoryEntry({
     required this.stage,
     required this.title,
     required this.description,
@@ -47,9 +47,9 @@ class HistoryProvider extends ChangeNotifier {
   List<FullBatteryEvent> loadFullBatteryEvents() =>
       _storage.loadFullBatteryEvents().reversed.toList();
 
-  /// ロケットを発射した記録を、新しい順に返す。
-  List<RocketLaunchEvent> loadRocketLaunchEvents() =>
-      _storage.loadRocketLaunchEvents().reversed.toList();
+  /// きらめきタイムが発生した記録を、新しい順に返す。
+  List<SparkleEvent> loadSparkleEvents() =>
+      _storage.loadSparkleEvents().reversed.toList();
 
   /// 解除済みの実績を、新しい順に返す。
   List<UnlockedAchievement> loadAchievementEvents() => _storage
@@ -61,17 +61,17 @@ class HistoryProvider extends ChangeNotifier {
           ))
       .toList();
 
-  /// 町の発展段階到達履歴を、新しい順に返す。
-  List<TownStageHistoryEntry> loadTownStageEvents() => _storage
-      .loadTownStageEvents()
+  /// 相棒の進化段階到達履歴を、新しい順に返す。
+  List<CompanionStageHistoryEntry> loadCompanionStageEvents() => _storage
+      .loadCompanionStageEvents()
       .reversed
-      .map((TownStageEvent e) {
-        final stage = TownStages.stages.firstWhere(
+      .map((CompanionStageEvent e) {
+        final stage = CompanionStages.stages.firstWhere(
           (s) => s.id == e.stageId,
-          orElse: () => TownStages.stages.first,
+          orElse: () => CompanionStages.stages.first,
         );
-        final story = TownAtmosphere.stageStory(e.stageId);
-        return TownStageHistoryEntry(
+        final story = CompanionAtmosphere.stageStory(e.stageId);
+        return CompanionStageHistoryEntry(
           stage: stage,
           title: story.title,
           description: story.description,

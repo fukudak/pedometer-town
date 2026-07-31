@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../domain/models/building.dart';
-import '../domain/models/town_state.dart';
+import '../domain/models/companion_state.dart';
 
 /// 実績の定義
 class Achievement {
@@ -9,7 +8,7 @@ class Achievement {
   final String title;
   final String description;
   final IconData icon;
-  final bool Function(TownState town, int rocketLaunches) isUnlocked;
+  final bool Function(CompanionState companion, int sparkleMoments) isUnlocked;
 
   const Achievement({
     required this.id,
@@ -25,49 +24,46 @@ class Achievements {
 
   static final List<Achievement> all = [
     Achievement(
-      id: 'first_house',
-      title: '最初の住宅',
-      description: '初めて住宅を建てた',
-      icon: Icons.house,
-      isUnlocked: (town, launches) =>
-          town.buildings.any((b) => b.type == BuildingType.house),
+      id: 'first_meal',
+      title: 'はじめてのごはん',
+      description: '初めてごはんをあげた',
+      icon: Icons.restaurant,
+      isUnlocked: (companion, sparkleMoments) => companion.mealCount >= 1,
     ),
     Achievement(
-      id: 'first_power_plant',
-      title: '電力供給開始',
-      description: '初めて発電所を建てた',
+      id: 'first_booster',
+      title: 'げんきの素デビュー',
+      description: '初めてげんきの素をあげた',
       icon: Icons.bolt,
-      isUnlocked: (town, launches) =>
-          town.buildings.any((b) => b.type == BuildingType.powerPlant),
+      isUnlocked: (companion, sparkleMoments) => companion.boosterCount >= 1,
     ),
     Achievement(
-      id: 'first_park',
-      title: '緑のある暮らし',
-      description: '初めて公園を建てた',
-      icon: Icons.park,
-      isUnlocked: (town, launches) =>
-          town.buildings.any((b) => b.type == BuildingType.park),
+      id: 'first_toy',
+      title: '一緒に遊ぶ道具',
+      description: '初めておもちゃをあげた',
+      icon: Icons.toys,
+      isUnlocked: (companion, sparkleMoments) => companion.toyCount >= 1,
     ),
     Achievement(
-      id: 'ten_buildings',
-      title: '発展する町',
-      description: '建物が10棟に到達した',
-      icon: Icons.location_city,
-      isUnlocked: (town, launches) => town.townLevel >= 10,
+      id: 'ten_feeds',
+      title: 'すっかりなついた',
+      description: '合計10回お世話した',
+      icon: Icons.favorite,
+      isUnlocked: (companion, sparkleMoments) => companion.level >= 10,
     ),
     Achievement(
-      id: 'first_rocket',
-      title: '宇宙への第一歩',
-      description: '初めてロケットを発射した',
-      icon: Icons.rocket_launch,
-      isUnlocked: (town, launches) => launches >= 1,
+      id: 'first_sparkle',
+      title: 'はじめてのきらめき',
+      description: '初めてきらめきタイムが起きた',
+      icon: Icons.auto_awesome,
+      isUnlocked: (companion, sparkleMoments) => sparkleMoments >= 1,
     ),
     Achievement(
-      id: 'five_rockets',
-      title: '宇宙開発の常連',
-      description: 'ロケットを5回発射した',
-      icon: Icons.rocket_launch,
-      isUnlocked: (town, launches) => launches >= 5,
+      id: 'five_sparkles',
+      title: 'きらめきの常連',
+      description: 'きらめきタイムを5回見た',
+      icon: Icons.stars,
+      isUnlocked: (companion, sparkleMoments) => sparkleMoments >= 5,
     ),
   ];
 

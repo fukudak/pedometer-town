@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../constants/town_atmosphere.dart';
+import '../../constants/companion_atmosphere.dart';
 
 enum _ParticleKind { rain, snow, petal, leaf }
 
@@ -26,22 +26,22 @@ class _Particle {
   });
 }
 
-/// 町マップ上に天気・季節の軽いパーティクルを描画する。
-class TownWeatherOverlay extends StatefulWidget {
-  final TownWeather weather;
-  final TownSeason season;
+/// 相棒の背景に天気・季節の軽いパーティクルを描画する。
+class CompanionWeatherOverlay extends StatefulWidget {
+  final CompanionWeather weather;
+  final CompanionSeason season;
 
-  const TownWeatherOverlay({
+  const CompanionWeatherOverlay({
     super.key,
     required this.weather,
     required this.season,
   });
 
   @override
-  State<TownWeatherOverlay> createState() => _TownWeatherOverlayState();
+  State<CompanionWeatherOverlay> createState() => _CompanionWeatherOverlayState();
 }
 
-class _TownWeatherOverlayState extends State<TownWeatherOverlay>
+class _CompanionWeatherOverlayState extends State<CompanionWeatherOverlay>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
@@ -84,8 +84,8 @@ class _TownWeatherOverlayState extends State<TownWeatherOverlay>
 }
 
 class _WeatherPainter extends CustomPainter {
-  final TownWeather weather;
-  final TownSeason season;
+  final CompanionWeather weather;
+  final CompanionSeason season;
   final double progress;
 
   _WeatherPainter({
@@ -95,27 +95,43 @@ class _WeatherPainter extends CustomPainter {
   });
 
   static List<_ParticleKind> _activeKinds(
-    TownWeather weather,
-    TownSeason season,
+    CompanionWeather weather,
+    CompanionSeason season,
   ) {
-    if (weather == TownWeather.rainy) {
+    if (weather == CompanionWeather.rainy) {
       return const [_ParticleKind.rain];
     }
     switch (season) {
-      case TownSeason.spring:
+      case CompanionSeason.spring:
         return const [_ParticleKind.petal];
-      case TownSeason.summer:
+      case CompanionSeason.summer:
         return const [];
-      case TownSeason.autumn:
+      case CompanionSeason.autumn:
         return const [_ParticleKind.leaf];
-      case TownSeason.winter:
+      case CompanionSeason.winter:
         return const [_ParticleKind.snow];
     }
   }
 
+  /// (weather, season) の組み合わせは有限（3×4）なので、パーティクル配置は
+  /// 一度作ったらキャッシュして使い回す。毎フレーム `paint()` で作り直すと
+  /// 乱数生成とオブジェクト割り当てが無駄に発生し続けるため。
+  static final Map<int, List<_Particle>> _particleCache = {};
+
+  static List<_Particle> _particlesFor(
+    CompanionWeather weather,
+    CompanionSeason season,
+  ) {
+    final cacheKey = weather.index * CompanionSeason.values.length + season.index;
+    return _particleCache.putIfAbsent(
+      cacheKey,
+      () => _buildParticles(weather, season),
+    );
+  }
+
   static List<_Particle> _buildParticles(
-    TownWeather weather,
-    TownSeason season,
+    CompanionWeather weather,
+    CompanionSeason season,
   ) {
     final kinds = _activeKinds(weather, season);
     if (kinds.isEmpty) return const [];
@@ -144,7 +160,7 @@ class _WeatherPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final particles = _buildParticles(weather, season);
+    final particles = _particlesFor(weather, season);
     if (particles.isEmpty) return;
 
     for (final particle in particles) {

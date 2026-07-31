@@ -35,12 +35,12 @@
 ```
 lib/
 ├── main.dart / app.dart
-├── constants/     # 数値定数・建物定義・発展段階・実績
+├── constants/     # 数値定数・ごはん定義・進化段階・実績
 ├── domain/        # 純粋ロジック・モデル
 ├── data/          # LocalStorage（SharedPreferences）
 ├── services/      # HealthService, SpeedMeasurementService
-├── providers/     # Settings, Energy, Town, History
-└── screens/       # Home, Town, History, Settings
+├── providers/     # Settings, Energy, Companion, History
+└── screens/       # Home, Companion, History, Settings
 
 doc/               # 設計・仕様ドキュメント
 docs/              # ストア公開・プライバシーポリシー

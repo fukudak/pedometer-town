@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../constants/building_definitions.dart';
+import '../constants/companion_stages.dart';
+import '../constants/feed_item_definitions.dart';
 import '../constants/game_constants.dart';
-import '../constants/town_stages.dart';
-import '../domain/models/building.dart';
+import '../domain/models/feed_item_type.dart';
 
 /// 操作説明とクリア条件を表示する画面
 class HowToPlayScreen extends StatelessWidget {
@@ -12,7 +12,7 @@ class HowToPlayScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final finalStage = TownStages.stages.last;
+    final finalStage = CompanionStages.stages.last;
 
     return Scaffold(
       appBar: AppBar(title: const Text('遊び方')),
@@ -25,8 +25,8 @@ class HowToPlayScreen extends StatelessWidget {
             children: const [
               _Step(number: 1, text: '歩くと歩数が自動で同期され、蓄電池にエネルギーが溜まります。'),
               _Step(number: 2, text: '蓄電池が満タンになると「ストック」に電池が1個追加されます。'),
-              _Step(number: 3, text: '町画面でストックした電池を使い、建てたい建物を選んで建設します。'),
-              _Step(number: 4, text: '建物が増えると町が発展し、蓄電池容量や発電効率が上がります。'),
+              _Step(number: 3, text: '相棒画面でストックした電池を使い、あげたいごはんを選んで与えます。'),
+              _Step(number: 4, text: 'ごはんをあげるたびに相棒はなついていき、進化していきます。'),
             ],
           ),
           _SectionCard(
@@ -48,18 +48,18 @@ class HowToPlayScreen extends StatelessWidget {
             ],
           ),
           _SectionCard(
-            icon: Icons.location_city,
-            title: '建物の種類',
+            icon: Icons.pets,
+            title: 'ごはんの種類',
             children: [
-              for (final type in BuildingType.values)
-                _BuildingRow(type: type),
+              for (final type in FeedItemType.values)
+                _FeedItemRow(type: type),
             ],
           ),
           _SectionCard(
-            icon: Icons.landscape,
-            title: '町の発展段階',
+            icon: Icons.auto_awesome,
+            title: '相棒の進化段階',
             children: [
-              for (final stage in TownStages.stages)
+              for (final stage in CompanionStages.stages)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Row(
@@ -73,7 +73,7 @@ class HowToPlayScreen extends StatelessWidget {
                         child: Text(
                           stage.minLevel == 0
                               ? stage.name
-                              : '${stage.name}（${stage.minLevel}棟〜）',
+                              : '${stage.name}（なつき度${stage.minLevel}〜）',
                         ),
                       ),
                     ],
@@ -86,15 +86,15 @@ class HowToPlayScreen extends StatelessWidget {
             title: 'クリア条件',
             children: [
               Text(
-                '建物が ${finalStage.minLevel} 棟に達し「${finalStage.name}」段階になると、'
-                'ロケットが初めて発射されます。これがメインの目標です。',
+                'なつき度が ${finalStage.minLevel} に達し「${finalStage.name}」段階になると、'
+                '初めての「きらめきタイム」が起こります。これがメインの目標です。',
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
               Text(
-                'ロケット建設段階以降は、${GameConstants.rocketLaunchInterval}棟建てるごとに'
-                'ロケットが再発射されます。クリア後も町は成長し続け、'
-                '実績の解除や文明スコアの向上を目指せます。',
+                '最終進化段階以降は、${GameConstants.sparkleMomentInterval}回ごはんをあげるごとに'
+                'きらめきタイムが再び起こります。クリア後も相棒との時間は続き、'
+                '実績の解除や愛着スコアの向上を目指せます。',
                 style: TextStyle(color: colorScheme.outline),
               ),
             ],
@@ -104,8 +104,8 @@ class HowToPlayScreen extends StatelessWidget {
             title: '画面の見方',
             children: const [
               _Bullet(text: 'ホーム — 蓄電池の状態・今日の歩数・発電量・同期'),
-              _Bullet(text: '町 — 建物マップ・ストック電池の消費・発展段階'),
-              _Bullet(text: '履歴 — 日次記録・満タンイベント・ロケット発射・実績'),
+              _Bullet(text: '相棒 — 相棒の姿・ストック電池の消費・進化段階'),
+              _Bullet(text: '履歴 — 日次記録・満タンイベント・きらめきタイム・実績'),
               _Bullet(text: '設定 — 体重・速度・発電係数・GPS速度計測'),
             ],
           ),
@@ -113,8 +113,9 @@ class HowToPlayScreen extends StatelessWidget {
             icon: Icons.lightbulb_outline,
             title: 'ヒント',
             children: const [
-              _Bullet(text: '発電所を建てると蓄電池容量が増え、満タンにしやすくなります。'),
-              _Bullet(text: '公園を建てると発電効率が上がり、同じ歩数でより多く発電できます。'),
+              _Bullet(text: 'げんきの素をあげると蓄電池容量が増え、満タンにしやすくなります。'),
+              _Bullet(text: 'おもちゃをあげると発電効率が上がり、同じ歩数でより多く発電できます。'),
+              _Bullet(text: '相棒をタップすると、なでてあげられます。'),
               _Bullet(text: 'アプリを開くと自動で歩数が同期されます。'),
               _Bullet(text: 'データはすべて端末内に保存され、外部へ送信されません。'),
             ],
@@ -220,22 +221,22 @@ class _Bullet extends StatelessWidget {
   }
 }
 
-class _BuildingRow extends StatelessWidget {
-  final BuildingType type;
+class _FeedItemRow extends StatelessWidget {
+  final FeedItemType type;
 
-  const _BuildingRow({required this.type});
+  const _FeedItemRow({required this.type});
 
   @override
   Widget build(BuildContext context) {
-    final def = BuildingDefinitions.of(type);
+    final def = FeedItemDefinitions.of(type);
     final colorScheme = Theme.of(context).colorScheme;
 
     final effect = switch (type) {
-      BuildingType.house => '人口 +${def.population}',
-      BuildingType.powerPlant =>
-        '蓄電池容量 +${BuildingDefinitions.powerPlantCapacityBonusWh.toStringAsFixed(0)} Wh',
-      BuildingType.park =>
-        '発電効率 ×${BuildingDefinitions.parkCoefficientMultiplier}',
+      FeedItemType.meal => 'なつき度 +1',
+      FeedItemType.booster =>
+        '蓄電池容量 +${FeedItemDefinitions.boosterCapacityBonusWh.toStringAsFixed(0)} Wh',
+      FeedItemType.toy =>
+        '発電効率 ×${FeedItemDefinitions.toyCoefficientMultiplier}',
     };
 
     return Padding(
