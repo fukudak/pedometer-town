@@ -1,7 +1,7 @@
 # 万歩計タウン 技術スタック
 
-**バージョン**: 1.0  
-**日付**: 2026-06-27
+**バージョン**: 1.1  
+**日付**: 2026-07-31
 
 ---
 
@@ -35,12 +35,14 @@
 ```
 lib/
 ├── main.dart / app.dart
-├── constants/     # 数値定数・ごはん定義・進化段階・実績
+├── constants/     # 数値定数・ごはん定義・進化段階・実績・雰囲気
 ├── domain/        # 純粋ロジック・モデル
 ├── data/          # LocalStorage（SharedPreferences）
 ├── services/      # HealthService, SpeedMeasurementService
 ├── providers/     # Settings, Energy, Companion, History
-└── screens/       # Home, Companion, History, Settings
+├── screens/       # Home, Companion, History, Settings, HowToPlay
+├── utils/         # date_key など共通ユーティリティ
+└── widgets/       # BatteryStockDisplay, companion/
 
 doc/               # 設計・仕様ドキュメント
 docs/              # ストア公開・プライバシーポリシー

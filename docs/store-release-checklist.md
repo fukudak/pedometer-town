@@ -1,6 +1,6 @@
 # ストア公開チェックリスト
 
-最終更新: 2026-06-27
+最終更新: 2026-07-31
 
 具体的な操作手順は [release-procedures.md](release-procedures.md) を参照。
 
@@ -14,9 +14,9 @@
   - `android/key.properties`、`android/upload-keystore.jks` は `.gitignore` 済み（コミットされない）
   - `flutter build apk --release` で署名済みビルドが生成されることを確認済み
 - [x] README.md を実態に合わせて更新
-- [x] `doc/` 設計ドキュメントを実装に合わせて更新（2026-06-27）
+- [x] `doc/` 設計ドキュメントを実装に合わせて更新（2026-07-30 相棒育成モード移行、2026-07-31 再同期）
 - [x] プライバシーポリシー ドラフト作成（`docs/privacy.html`）
-- [x] ストア掲載文ドラフト作成（`docs/store-listing.md`）
+- [x] ストア掲載文ドラフト作成（`docs/store-listing.md`）※相棒育成モードに合わせて更新済み
 
 ## ⚠️ 重要: 署名鍵のバックアップ（必須・最優先）
 
@@ -33,7 +33,7 @@
   - GitHubリポジトリ → Settings → Pages → Source を `Deploy from a branch` にし、Branch を `master` / フォルダを `/docs` に設定
   - 公開後のURLを `docs/store-listing.md` 内のプライバシーポリシーURLに反映
 - [ ] `docs/store-listing.md` の説明文・キーワードを確認・推敲
-- [ ] スクリーンショット撮影（ホーム画面・町画面・履歴画面・設定画面など）
+- [ ] スクリーンショット撮影（ホーム画面・相棒画面・履歴画面・設定画面・遊び方など）
 
 ### Google Play
 - [ ] Google Play Console アカウント登録（初回$25）

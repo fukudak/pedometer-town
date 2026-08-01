@@ -240,11 +240,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 16),
           _SettingsSection(
-            icon: Icons.pets,
-            title: '相棒の表示',
+            icon: Icons.location_city,
+            title: 'まちの表示',
             children: [
               _LabeledField(
-                label: '相棒の名前',
+                label: 'まちの名前',
                 unit: '',
                 controller: _companionNameController,
                 focusNode: _companionNameFocus,

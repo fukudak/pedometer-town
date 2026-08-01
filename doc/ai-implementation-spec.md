@@ -1,7 +1,7 @@
 # 万歩計タウン 実装仕様書
 
-**バージョン**: 3.0
-**日付**: 2026-07-30
+**バージョン**: 3.1
+**日付**: 2026-07-31
 **前提ドキュメント**: `requirements.md`, `tech-stack.md`
 
 > 本書は Flutter 版の正式仕様である。
@@ -38,7 +38,9 @@
 | 状態管理 | `provider` | ^6.1.0 |
 | ローカル保存 | `shared_preferences` | ^2.3.0 |
 
-アプリバージョン: `pubspec.yaml` の `version`（現在 `1.0.0+1`）
+アプリバージョン:
+- `pubspec.yaml` の `version`: `1.0.0+1`（ストア向け build-name / build-number）
+- 設定画面に表示する `GameConstants.appVersion`: `0.9`（UI 表示用。変更時は両方を揃えること）
 
 ---
 
@@ -84,6 +86,8 @@ lib/
 │   ├── history_screen.dart
 │   ├── how_to_play_screen.dart
 │   └── settings_screen.dart
+├── utils/
+│   └── date_key.dart
 └── widgets/
     ├── battery_stock_display.dart
     └── companion/
@@ -237,11 +241,42 @@ class CompanionState {
 | SparkleEvent | きらめきタイム発生 | `sparkle_events` |
 | AchievementEvent | 実績解除 | `companion_achievement_events` |
 | CompanionStageEvent | 進化段階到達 | `companion_stage_events` |
+| FeedEvent | 給餌直後の UI 演出 | **非永続**（再起動後は再生しない） |
 
 その他: `last_synced_at`, `lifetime_energy_wh`, `pending_batteries`,
 `companion_last_fed_at`, `companion_celebrated_stage_ids`, Android ベースライン
 
----
+旧 `town_buildings` キーは companion カウント未作成時のマイグレーション専用（座標は破棄）。
+
+### 4.5 きげん（CompanionMood）
+
+`CompanionLogic.moodFor` が `companion_last_fed_at` から導出する（きげん自体は非永続）。
+
+| 状態 | 条件 | UI 目安 |
+|------|------|---------|
+| `none` | 未給餌 | まだ生まれていない |
+| `happy` | 最終給餌から 24 時間以内 | ごきげん |
+| `normal` | 最終給餌から 3 日以内 | ふつう |
+| `lonely` | それ以降 | さみしそう |
+
+閾値定数: `CompanionLogic.happyThreshold` / `normalThreshold`。
+
+### 4.6 愛着スコア
+
+```
+bondScore = level × 10 + floor(lifetimeEnergyWh / 100) + sparkleMoments × 50
+```
+
+`CompanionLogic.bondScore` / `CompanionProvider.bondScore`。
+
+### 4.7 相棒画面の情緒・触れ合い（見た目）
+
+| 機能 | 内容 | 永続化 |
+|------|------|--------|
+| 時間帯パレット | morning/day/evening/night（端末ローカル時刻） | なし |
+| 天気・季節オーバーレイ | 日付シードの天気 + 月の季節パーティクル | `companion_weather_fx_enabled` で ON/OFF |
+| なでる | 相棒タップ → ハプティック + ハート演出 | なし |
+| スクリーンショットモード | セッション限り。ストック・統計等を隠し、相棒＋名前＋段階を中心表示 | なし |
 
 ## 5. ごはん
 
@@ -271,14 +306,14 @@ class CompanionState {
 
 | なつき度 | 段階名 |
 |--------|--------|
-| 0 | でんきのたまご |
-| 1 | たまごがひかりだす |
-| 2 | 相棒が生まれた |
-| 4 | 元気に動き回る |
-| 7 | 力がみなぎる |
-| 10 | 頼れる相棒になった |
-| 13 | 光をまといはじめた |
-| 17 | 星のように輝く |
+| 0 | まっさらな土地 |
+| 1 | 小さな家 |
+| 2 | 電灯の村 |
+| 4 | にぎわう街 |
+| 7 | ビルの街 |
+| 10 | 工業地帯 |
+| 13 | 宇宙基地 |
+| 17 | ロケット打ち上げ |
 
 最終段階到達後、2回給餌するごとに1回きらめきタイムが発生（`GameConstants.sparkleMomentInterval`）。
 
@@ -300,9 +335,9 @@ class CompanionState {
 
 | Provider | 状態 | 主要メソッド |
 |----------|------|--------------|
-| SettingsProvider | PlayerSettings | `updateWeight`, `updateSpeed`, `updateCoefficient`, `updateCompanionName` |
+| SettingsProvider | PlayerSettings | `updateWeight`, `updateSpeed`, `updateCoefficient`, `updateCompanionName`, `updateCompanionWeatherFxEnabled` |
 | EnergyProvider | BatteryState, DailyStepRecord, pendingBatteries | `syncStepsFromHealth`, `consumeStockedBatteries`, `refreshDisplay` |
-| CompanionProvider | CompanionState, きげん, 実績キュー | `feedChosen`, `effectiveCapacityWh`, `effectiveCoefficient`, `mood` |
+| CompanionProvider | CompanionState, mood, bondScore, 実績・進化キュー, FeedEvent | `feedChosen`, `effectiveCapacityWh`, `effectiveCoefficient`, `firstSparkleDate` |
 | HistoryProvider | — | `loadHistory`, `deleteHistoryRecord`, イベント読み出し |
 
 `EnergyProvider` は `CompanionProvider.effectiveCoefficient` を係数供給元として参照する。
@@ -355,4 +390,6 @@ class CompanionState {
 | 同期 | 歩数を取得し差分をエネルギーに反映する操作 |
 | なつき度 | 給餌回数の合計。進化段階を決定する |
 | 愛着スコア | なつき度×10 + 累積発電量/100 + きらめきタイム×50 |
+| きげん | 最終給餌からの経過で決まる気分（happy / normal / lonely / none） |
 | きらめきタイム | 最終進化段階到達後、一定間隔で発生する祝福演出 |
+| なでる | 相棒タップの軽い触れ合い演出（電気を消費しない） |

@@ -73,7 +73,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         title: const Text('万歩計タウン'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.pets),
+            tooltip: 'まち',
+            icon: const Icon(Icons.location_city),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const CompanionScreen()),
             ),
@@ -205,43 +206,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             icon: const Icon(Icons.sync),
             label: const Text('同期'),
           ),
-          const SizedBox(height: 24),
-          Text('メニュー', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const CompanionScreen()),
-                  ),
-                  icon: const Icon(Icons.pets),
-                  label: const Text('相棒'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const HistoryScreen()),
-                  ),
-                  icon: const Icon(Icons.history),
-                  label: const Text('履歴'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                  ),
-                  icon: const Icon(Icons.settings),
-                  label: const Text('設定'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const HowToPlayScreen()),

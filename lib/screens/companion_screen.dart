@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,6 +14,7 @@ import '../providers/companion_provider.dart';
 import '../providers/energy_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/battery_stock_display.dart';
+import '../widgets/companion/companion_avatar.dart';
 import '../widgets/companion/companion_weather_overlay.dart';
 
 class CompanionScreen extends StatefulWidget {
@@ -80,11 +80,11 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
       if (!mounted) return;
       final story = CompanionAtmosphere.stageStory(stage.id);
       await _showCelebrationDialog(
-        icon: CompanionAtmosphere.stageIcon(stage),
+        stage: stage,
         title: story.title,
         heading: stage.name,
         description: story.description,
-        buttonLabel: 'つづきを歩く',
+        buttonLabel: 'もっと歩く',
       );
     }
 
@@ -93,7 +93,7 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
     for (final achievement in pending) {
       if (!mounted) return;
       await _showCelebrationDialog(
-        icon: achievement.icon,
+        achievementIcon: achievement.icon,
         title: '実績解除！',
         heading: achievement.title,
         description: achievement.description,
@@ -104,7 +104,8 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
 
   /// 進化段階・実績どちらの祝福ダイアログにも使う共通のレイアウト。
   Future<void> _showCelebrationDialog({
-    required IconData icon,
+    CompanionStage? stage,
+    IconData? achievementIcon,
     required String title,
     required String heading,
     required String description,
@@ -113,7 +114,17 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
     return showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        icon: Icon(icon, size: 40, color: Colors.amber),
+        icon: stage != null
+            ? SizedBox(
+                width: 72,
+                height: 72,
+                child: CompanionAvatar(
+                  stage: stage,
+                  mood: CompanionMood.happy,
+                  size: 72,
+                ),
+              )
+            : Icon(achievementIcon ?? Icons.emoji_events, size: 40, color: Colors.amber),
         title: Text(title),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -151,7 +162,7 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
     if (!mounted) return;
     final def = FeedItemDefinitions.of(event.type);
     final effectText = switch (event.type) {
-      FeedItemType.meal => 'なつき度 +1',
+      FeedItemType.meal => '発展度 +1',
       FeedItemType.booster =>
         '蓄電池容量 +${FeedItemDefinitions.boosterCapacityBonusWh.toStringAsFixed(0)} Wh',
       FeedItemType.toy => '発電効率 ×${FeedItemDefinitions.toyCoefficientMultiplier}',
@@ -159,7 +170,7 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         duration: const Duration(seconds: 2),
-        content: Text('${def.displayName}をあげました（$effectText）'),
+        content: Text('${def.displayName}を使った（$effectText）'),
       ),
     );
   }
@@ -190,7 +201,7 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
             const Padding(
               padding: EdgeInsets.all(16.0),
               child: Text(
-                'あげるごはんを選んでください',
+                'まちに使うアイテムを選んでください',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
               ),
             ),
@@ -226,13 +237,13 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
   String _moodLabel(CompanionMood mood) {
     switch (mood) {
       case CompanionMood.none:
-        return 'まだ生まれていない';
+        return 'お休み中';
       case CompanionMood.happy:
-        return 'ごきげん';
+        return '元気に稼働中';
       case CompanionMood.normal:
         return 'ふつう';
       case CompanionMood.lonely:
-        return 'さみしそう';
+        return '電力が足りない…';
     }
   }
 
@@ -259,7 +270,7 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
       season: season,
     );
     final companionName = settingsProvider.settings.companionName.trim();
-    final displayName = companionName.isEmpty ? 'あいぼう' : companionName;
+    final displayName = companionName.isEmpty ? 'わたしのまち' : companionName;
     final weatherFxEnabled = settingsProvider.settings.companionWeatherFxEnabled;
     final firstSparkleDate = companionProvider.firstSparkleDate;
     final pendingFeed = companionProvider.pendingFeedEvent;
@@ -291,23 +302,31 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
         padding: const EdgeInsets.all(16.0),
         children: [
           AnimatedBuilder(
-            animation: Listenable.merge([_idleController, _feedController, _patController]),
-            builder: (context, _) => _CompanionStage(
-              skyColor: palette.skyColor,
-              stage: stage,
-              isFinalStage: isFinalStage,
-              weather: weather,
-              season: season,
-              weatherFxEnabled: weatherFxEnabled,
-              idleValue: _idleController.value,
-              feedScale: _activeFeedEvent == null
-                  ? 1.0
-                  : Tween<double>(begin: 0.6, end: 1.0)
-                      .transform(Curves.elasticOut.transform(_feedController.value)),
-              showPatHeart: _showPatHeart,
-              patValue: _patController.value,
-              onTap: _pat,
-            ),
+            animation: Listenable.merge([
+              _idleController,
+              _feedController,
+              _patController,
+            ]),
+            builder: (context, _) {
+              return _CompanionStage(
+                skyColor: palette.skyColor,
+                stage: stage,
+                mood: companionProvider.mood,
+                isFinalStage: isFinalStage,
+                developmentLevel: level,
+                weather: weather,
+                season: season,
+                weatherFxEnabled: weatherFxEnabled,
+                idleValue: _idleController.value,
+                feedScale: _activeFeedEvent == null
+                    ? 1.0
+                    : Tween<double>(begin: 0.6, end: 1.0)
+                        .transform(Curves.elasticOut.transform(_feedController.value)),
+                showPatHeart: _showPatHeart,
+                patValue: _patController.value,
+                onTap: _pat,
+              );
+            },
           ),
           const SizedBox(height: 16),
           Center(
@@ -319,7 +338,7 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  level == 0 ? stage.name : '${stage.name}（なつき度 $level）',
+                  level == 0 ? stage.name : '${stage.name}（発展度 $level）',
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
@@ -327,6 +346,31 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
                   _moodLabel(companionProvider.mood),
                   style: TextStyle(color: colorScheme.outline),
                 ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    Chip(
+                      avatar: const Icon(Icons.apartment, size: 18),
+                      label: Text('建物 ${TownStats.buildingCount(level)} 棟'),
+                    ),
+                    Chip(
+                      avatar: const Icon(Icons.groups, size: 18),
+                      label: Text('人口 ${TownStats.population(level)} 人'),
+                    ),
+                  ],
+                ),
+                if (isFinalStage) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    CompanionStages.postRocketGrowth(level) == 0
+                        ? 'ロケット到達！これからは建物と人口が増えていく'
+                        : '拡大中（+${CompanionStages.postRocketGrowth(level)}）',
+                    style: TextStyle(fontSize: 12, color: colorScheme.outline),
+                  ),
+                ],
               ],
             ),
           ),
@@ -360,7 +404,7 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
                         minimumSize: const Size(64, 40),
                       ),
                       onPressed: pendingBatteries == 0 ? null : _feedFromStock,
-                      child: const Text('あげる'),
+                      child: const Text('建設'),
                     ),
                   ],
                 ),
@@ -374,33 +418,34 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
                   style: TextStyle(color: colorScheme.outline),
                 ),
               ),
+              const SizedBox(height: 12),
+              _NextMilestoneCard.postRocket(
+                nextBuildings: TownStats.buildingCount(level + 1),
+                nextPopulation: TownStats.population(level + 1),
+                currentBuildings: TownStats.buildingCount(level),
+                currentPopulation: TownStats.population(level),
+              ),
             ],
             if (nextStage != null) ...[
               const SizedBox(height: 16),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: LinearProgressIndicator(
-                  value: (level - stage.minLevel) /
-                      (nextStage.minLevel - stage.minLevel),
-                  minHeight: 8,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Center(
-                child: Text(
-                  '次は「${nextStage.name}」まであと ${nextStage.minLevel - level} 回',
-                  style: TextStyle(fontSize: 12, color: colorScheme.outline),
-                ),
+              _NextMilestoneCard(
+                remaining: nextStage.minLevel - level,
+                nextName: nextStage.name,
+                hint: CompanionStages.nextMilestone(level)!.hint,
+                nextBuildings: TownStats.buildingCount(nextStage.minLevel),
+                nextPopulation: TownStats.population(nextStage.minLevel),
+                progress: (level - stage.minLevel) /
+                    (nextStage.minLevel - stage.minLevel),
               ),
             ],
             const SizedBox(height: 16),
             _StatChip(
-              icon: Icons.favorite,
-              label: '愛着スコア',
+              icon: Icons.location_city,
+              label: 'まちスコア',
               value: '${companionProvider.bondScore}',
             ),
             const SizedBox(height: 24),
-            Text('あげたごはん', style: Theme.of(context).textTheme.titleMedium),
+            Text('使った建設', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -415,6 +460,117 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _NextMilestoneCard extends StatelessWidget {
+  final int remaining;
+  final String nextName;
+  final String hint;
+  final int nextBuildings;
+  final int nextPopulation;
+  final double progress;
+  final bool postRocket;
+  final int? currentBuildings;
+  final int? currentPopulation;
+
+  const _NextMilestoneCard({
+    required this.remaining,
+    required this.nextName,
+    required this.hint,
+    required this.nextBuildings,
+    required this.nextPopulation,
+    required this.progress,
+  })  : postRocket = false,
+        currentBuildings = null,
+        currentPopulation = null;
+
+  const _NextMilestoneCard.postRocket({
+    required this.nextBuildings,
+    required this.nextPopulation,
+    required this.currentBuildings,
+    required this.currentPopulation,
+  })  : remaining = 1,
+        nextName = '',
+        hint = '',
+        progress = 0,
+        postRocket = true;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    if (postRocket) {
+      final bGain = nextBuildings - (currentBuildings ?? 0);
+      final pGain = nextPopulation - (currentPopulation ?? 0);
+      return Card(
+        color: colorScheme.secondaryContainer.withValues(alpha: 0.45),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '次の建設で',
+                style: TextStyle(fontSize: 13, color: colorScheme.outline),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '建物 +$bGain 棟 ／ 人口 +$pGain 人',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '→ 建物 $nextBuildings 棟・人口 $nextPopulation 人',
+                style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      color: colorScheme.primaryContainer.withValues(alpha: 0.55),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'あと $remaining 回建設すると',
+              style: TextStyle(fontSize: 13, color: colorScheme.onPrimaryContainer),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              nextName,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              hint,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onPrimaryContainer,
+              ),
+            ),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: progress.clamp(0.0, 1.0),
+                minHeight: 8,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '到達時: 建物 $nextBuildings 棟・人口 $nextPopulation 人',
+              style: TextStyle(fontSize: 12, color: colorScheme.outline),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -458,11 +614,13 @@ class _StatChip extends StatelessWidget {
   }
 }
 
-/// 相棒本体の表示エリア（背景の時間帯・天気演出＋中央の相棒アイコン）。
+/// まちの正面ビュー（時間帯・天気＋スカイライン）。
 class _CompanionStage extends StatelessWidget {
   final Color skyColor;
   final CompanionStage stage;
+  final CompanionMood mood;
   final bool isFinalStage;
+  final int developmentLevel;
   final CompanionWeather weather;
   final CompanionSeason season;
   final bool weatherFxEnabled;
@@ -475,7 +633,9 @@ class _CompanionStage extends StatelessWidget {
   const _CompanionStage({
     required this.skyColor,
     required this.stage,
+    required this.mood,
     required this.isFinalStage,
+    required this.developmentLevel,
     required this.weather,
     required this.season,
     required this.weatherFxEnabled,
@@ -488,48 +648,66 @@ class _CompanionStage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final bounce = math.sin(idleValue * math.pi) * 6;
     return GestureDetector(
       onTap: onTap,
       child: AspectRatio(
-        aspectRatio: 1,
+        aspectRatio: 4 / 3,
         child: Container(
           decoration: BoxDecoration(
-            color: skyColor,
-            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                skyColor,
+                Color.lerp(skyColor, const Color(0xFFFFF8E1), 0.35)!,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(24),
           ),
+          clipBehavior: Clip.antiAlias,
           child: Stack(
-            alignment: Alignment.center,
             children: [
-              Transform.translate(
-                offset: Offset(0, -bounce),
-                child: Transform.scale(
-                  scale: feedScale,
-                  child: Icon(
-                    CompanionAtmosphere.stageIcon(stage),
-                    size: 96,
-                    color: colorScheme.onSurface,
+              Positioned(
+                left: 24,
+                right: 24,
+                bottom: 28,
+                child: Container(
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(40),
                   ),
                 ),
               ),
-              if (isFinalStage)
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: Opacity(
-                    opacity: 0.4 + 0.6 * (0.5 + 0.5 * math.sin(idleValue * math.pi * 2)),
-                    child: const Icon(Icons.auto_awesome, size: 20, color: Colors.amber),
+              Align(
+                alignment: Alignment.center,
+                child: Transform.scale(
+                  scale: feedScale,
+                child: CompanionAvatar(
+                    stage: stage,
+                    mood: mood,
+                    size: 220,
+                    idleValue: idleValue,
+                    showSparkles: isFinalStage,
+                    developmentLevel: developmentLevel,
                   ),
                 ),
+              ),
               if (showPatHeart)
-                Positioned(
-                  top: 24,
-                  child: Opacity(
-                    opacity: 1.0 - patValue,
-                    child: Transform.translate(
-                      offset: Offset(0, -20 * patValue),
-                      child: const Icon(Icons.favorite, color: Colors.pinkAccent, size: 28),
+                Align(
+                  alignment: Alignment.center,
+                  child: Transform.translate(
+                    offset: Offset(0, -50 - 28 * patValue),
+                    child: Opacity(
+                      opacity: 1.0 - patValue,
+                      child: Transform.scale(
+                        scale: 0.8 + 0.4 * (1 - patValue),
+                        child: const Icon(
+                          Icons.favorite,
+                          color: Color(0xFFFF8A80),
+                          size: 34,
+                        ),
+                      ),
                     ),
                   ),
                 ),

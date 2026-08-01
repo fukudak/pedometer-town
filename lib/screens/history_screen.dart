@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../constants/companion_atmosphere.dart';
+import '../domain/companion_logic.dart';
 import '../domain/models/daily_step_record.dart';
 import '../providers/history_provider.dart';
+import '../widgets/companion/companion_avatar.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
@@ -92,7 +93,7 @@ class HistoryScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                 ],
                 if (stageEvents.isNotEmpty) ...[
-                  Text('🌟 相棒の記録', style: Theme.of(context).textTheme.titleMedium),
+                  Text('🌆 まちの記録', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
                   ...stageEvents.map(
                     (event) => Card(
@@ -100,10 +101,10 @@ class HistoryScreen extends StatelessWidget {
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: colorScheme.primaryContainer,
-                          child: Icon(
-                            CompanionAtmosphere.stageIcon(event.stage),
-                            size: 18,
-                            color: colorScheme.onPrimaryContainer,
+                          child: CompanionAvatar(
+                            stage: event.stage,
+                            mood: CompanionMood.happy,
+                            size: 28,
                           ),
                         ),
                         title: Text(event.title),

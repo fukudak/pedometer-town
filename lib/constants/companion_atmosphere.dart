@@ -102,21 +102,21 @@ class CompanionAtmosphere {
   static ({String title, String description}) stageStory(String stageId) {
     switch (stageId) {
       case 'crack':
-        return (title: 'ひびが入った', description: 'でんきのたまごに、小さなひびが入った。');
+        return (title: '家が建った', description: 'まっさらな土地に、小さな家がひとつ建った。');
       case 'hatch':
-        return (title: 'はじめまして', description: '殻を破って、相棒が顔を出した。');
+        return (title: '電灯の村へ', description: '家が並び、歩いて集めたエネルギーで窓に灯りがついた。');
       case 'kid':
-        return (title: '元気いっぱい', description: 'あちこち動き回るようになった。');
+        return (title: 'にぎわう街へ', description: '商店や家が増え、街らしくなってきた。');
       case 'charged':
-        return (title: '力がみなぎる', description: '内側から、じんわり熱を持ちはじめた。');
+        return (title: 'ビルの街へ', description: '高層ビルが立ち、夜のスカイラインが形づくられた。');
       case 'reliable':
-        return (title: '頼れる相棒', description: 'どっしりと構え、頼れる姿になった。');
+        return (title: '工業地帯へ', description: '工場と煙突が現れ、町が産業の力で動きだした。');
       case 'radiant':
-        return (title: '光をまとう', description: 'からだの輪郭が、やわらかく光りはじめた。');
+        return (title: '宇宙基地へ', description: '研究棟と発射台が整備され、空を目指す準備が整った。');
       case 'star':
-        return (title: '星になる', description: '歩いて集めた力が、星のような輝きに変わった。');
+        return (title: 'ロケット打ち上げ', description: '歩いて集めたエネルギーが、ロケットを空へ押し上げた。');
       default:
-        return (title: '進化', description: '相棒が新しい姿へ進化した。');
+        return (title: 'まちが発展', description: '町が新しい姿へ発展した。');
     }
   }
 

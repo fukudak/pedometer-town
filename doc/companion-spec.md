@@ -166,14 +166,14 @@ class CompanionStage {
 
 | minLevel | id | 表示名 | icon |
 |----------|-----|--------|------|
-| 0 | `egg` | でんきのたまご | null |
-| 1 | `crack` | たまごがひかりだす | `Icons.egg` |
-| 2 | `hatch` | 相棒が生まれた | `Icons.emoji_emotions` |
-| 4 | `kid` | 元気に動き回る | `Icons.directions_run` |
-| 7 | `charged` | 力がみなぎる | `Icons.flash_on` |
-| 10 | `reliable` | 頼れる相棒になった | `Icons.shield` |
-| 13 | `radiant` | 光をまといはじめた | `Icons.auto_awesome` |
-| 17 | `star` | 星のように輝く | `Icons.stars` |
+| 0 | `egg` | まっさらな土地 | null |
+| 1 | `crack` | 小さな家 | `Icons.cottage` |
+| 2 | `hatch` | 電灯の村 | `Icons.lightbulb` |
+| 4 | `kid` | にぎわう街 | `Icons.home_work` |
+| 7 | `charged` | ビルの街 | `Icons.apartment` |
+| 10 | `reliable` | 工業地帯 | `Icons.factory` |
+| 13 | `radiant` | 宇宙基地 | `Icons.satellite_alt` |
+| 17 | `star` | ロケット打ち上げ | `Icons.rocket_launch` |
 
 `forLevel` / `next` / `isAtFinalStage` / `reachedStages` は旧 `TownStages` と同じシグネチャで実装する。
 `rocketLaunchCount` は `sparkleCount` にリネームし、`GameConstants.sparkleMomentInterval`（旧 `rocketLaunchInterval`、値2は据え置き）を使う。
@@ -206,13 +206,13 @@ class CompanionAtmosphere {
 
 | id | タイトル | 本文 |
 |----|----------|------|
-| crack | ひびが入った | でんきのたまごに、小さなひびが入った。 |
-| hatch | はじめまして | 殻を破って、相棒が顔を出した。 |
-| kid | 元気いっぱい | あちこち動き回るようになった。 |
-| charged | 力がみなぎる | 内側から、じんわり熱を持ちはじめた。 |
-| reliable | 頼れる相棒 | どっしりと構え、頼れる姿になった。 |
-| radiant | 光をまとう | からだの輪郭が、やわらかく光りはじめた。 |
-| star | 星になる | 歩いて集めた力が、星のような輝きに変わった。 |
+| crack | 家が建った | まっさらな土地に、小さな家がひとつ建った。 |
+| hatch | 電灯の村へ | 家が並び、歩いて集めたエネルギーで窓に灯りがついた。 |
+| kid | にぎわう街へ | 商店や家が増え、街らしくなってきた。 |
+| charged | ビルの街へ | 高層ビルが立ち、夜のスカイラインが形づくられた。 |
+| reliable | 工業地帯へ | 工場と煙突が現れ、町が産業の力で動きだした。 |
+| radiant | 宇宙基地へ | 研究棟と発射台が整備され、空を目指す準備が整った。 |
+| star | ロケット打ち上げ | 歩いて集めたエネルギーが、ロケットを空へ押し上げた。 |
 
 ### 1.7 Achievements（全面差し替え）
 
@@ -449,9 +449,9 @@ Phase 2.3 の演出済みIDマイグレーションにより、既存ユーザ�
 
 Phase 3/4 で実装済みの内容を UI 経由で確認する。追加のユニットテストは Phase 3 に含める。
 
-- [ ] 実績解除ダイアログが `CompanionScreen` で表示される
-- [ ] 進化段階到達ダイアログが表示される
-- [ ] `HistoryScreen` に「🌟 相棒の記録」「きらめきタイム履歴」「実績」セクションが表示される
+- [x] 実績解除ダイアログが `CompanionScreen` で表示される
+- [x] 進化段階到達ダイアログが表示される
+- [x] `HistoryScreen` に「🌟 相棒の記録」「きらめきタイム履歴」「実績」セクションが表示される
 
 ---
 
