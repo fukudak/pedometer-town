@@ -6,8 +6,7 @@
 
 > 本書は Flutter 版の正式仕様である。
 > **数値・挙動の正典は `lib/constants/`・`test/`・実装コード** を優先する。
-> 相棒育成モードへの置き換えの経緯・フェーズ別の実装詳細は
-> [companion-plan.md](companion-plan.md) / [companion-spec.md](companion-spec.md) を参照。
+> 過去の置き換え計画（相棒育成など）は [archive/](archive/) を参照。
 
 ---
 

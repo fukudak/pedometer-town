@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 
 import '../constants/companion_atmosphere.dart';
 import '../constants/companion_stages.dart';
-import '../constants/feed_item_definitions.dart';
 import '../domain/companion_logic.dart';
 import '../domain/models/feed_event.dart';
 import '../domain/models/feed_item_type.dart';
@@ -160,17 +159,10 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
 
     await HapticFeedback.mediumImpact();
     if (!mounted) return;
-    final def = FeedItemDefinitions.of(event.type);
-    final effectText = switch (event.type) {
-      FeedItemType.meal => '発展度 +1',
-      FeedItemType.booster =>
-        '蓄電池容量 +${FeedItemDefinitions.boosterCapacityBonusWh.toStringAsFixed(0)} Wh',
-      FeedItemType.toy => '発電効率 ×${FeedItemDefinitions.toyCoefficientMultiplier}',
-    };
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 2),
-        content: Text('${def.displayName}を使った（$effectText）'),
+      const SnackBar(
+        duration: Duration(seconds: 2),
+        content: Text('電力を投入した（発展度 +1）'),
       ),
     );
   }
@@ -187,50 +179,16 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
     });
   }
 
-  Future<void> _feedFromStock() async {
+  /// ストック電池1個を投入してまちを1段階発展させる。
+  Future<void> _investBattery() async {
     final energyProvider = context.read<EnergyProvider>();
     final companionProvider = context.read<CompanionProvider>();
-    final stock = energyProvider.pendingBatteries;
+    if (energyProvider.pendingBatteries < 1) return;
 
-    final type = await showModalBottomSheet<FeedItemType>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                'まちに使うアイテムを選んでください',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
-              ),
-            ),
-            for (final type in FeedItemType.values)
-              Builder(
-                builder: (context) {
-                  final def = FeedItemDefinitions.of(type);
-                  final affordable = stock >= def.batteryCost;
-                  return ListTile(
-                    leading: Icon(def.icon),
-                    title: Text(def.displayName),
-                    subtitle: Text('消費電池: ${def.batteryCost}個'),
-                    enabled: affordable,
-                    onTap: affordable
-                        ? () => Navigator.of(context).pop(type)
-                        : null,
-                  );
-                },
-              ),
-          ],
-        ),
-      ),
-    );
-    if (type == null) return;
-
-    final cost = FeedItemDefinitions.of(type).batteryCost;
-    final consumed = await energyProvider.consumeStockedBatteries(cost);
+    final consumed = await energyProvider.consumeStockedBatteries(1);
     if (!consumed) return;
-    await companionProvider.feedChosen(type);
+    // セーブ互換のため内部は meal としてカウント（レベルは合計回数）。
+    await companionProvider.feedChosen(FeedItemType.meal);
     await _showCelebrations();
   }
 
@@ -403,8 +361,8 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
                       style: FilledButton.styleFrom(
                         minimumSize: const Size(64, 40),
                       ),
-                      onPressed: pendingBatteries == 0 ? null : _feedFromStock,
-                      child: const Text('建設'),
+                      onPressed: pendingBatteries == 0 ? null : _investBattery,
+                      child: const Text('投入'),
                     ),
                   ],
                 ),
@@ -443,20 +401,6 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
               icon: Icons.location_city,
               label: 'まちスコア',
               value: '${companionProvider.bondScore}',
-            ),
-            const SizedBox(height: 24),
-            Text('使った建設', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: FeedItemType.values.map((type) {
-                final def = FeedItemDefinitions.of(type);
-                return Chip(
-                  avatar: Icon(def.icon, size: 18),
-                  label: Text('${def.displayName} ×${companion.countOf(type)}'),
-                );
-              }).toList(),
             ),
           ],
         ],
@@ -512,7 +456,7 @@ class _NextMilestoneCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '次の建設で',
+                '次の投入で',
                 style: TextStyle(fontSize: 13, color: colorScheme.outline),
               ),
               const SizedBox(height: 4),
@@ -539,7 +483,7 @@ class _NextMilestoneCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'あと $remaining 回建設すると',
+              'あと $remaining 回投入すると',
               style: TextStyle(fontSize: 13, color: colorScheme.onPrimaryContainer),
             ),
             const SizedBox(height: 4),

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../constants/companion_stages.dart';
-import '../constants/feed_item_definitions.dart';
 import '../constants/game_constants.dart';
 import '../domain/companion_logic.dart';
-import '../domain/models/feed_item_type.dart';
 import '../widgets/companion/companion_avatar.dart';
 
 /// 操作説明とクリア条件を表示する画面
@@ -27,8 +25,8 @@ class HowToPlayScreen extends StatelessWidget {
             children: const [
               _Step(number: 1, text: '歩くと歩数が自動で同期され、蓄電池にエネルギーが溜まります。'),
               _Step(number: 2, text: '蓄電池が満タンになると「ストック」に電池が1個追加されます。'),
-              _Step(number: 3, text: 'まち画面でストックした電池を使い、建設アイテムを選んで町を発展させます。'),
-              _Step(number: 4, text: '建設するたびに発展度が上がり、土地に家と電灯が増えていきます。'),
+              _Step(number: 3, text: 'まち画面でストックした電池を「投入」すると、町が発展します。'),
+              _Step(number: 4, text: '投入するたびに発展度が上がり、土地に家と電灯が増えていきます。'),
             ],
           ),
           _SectionCard(
@@ -52,11 +50,12 @@ class HowToPlayScreen extends StatelessWidget {
             ],
           ),
           _SectionCard(
-            icon: Icons.electrical_services,
-            title: '建設アイテム',
-            children: [
-              for (final type in FeedItemType.values)
-                _FeedItemRow(type: type),
+            icon: Icons.battery_charging_full,
+            title: '電力の投入',
+            children: const [
+              Text('ストックした電池は、まち画面の「投入」ボタンで1個ずつ使います。'),
+              SizedBox(height: 8),
+              Text('1回の投入で発展度が +1 され、町の姿・人口・建物数が進みます。種類の選択はありません。'),
             ],
           ),
           _SectionCard(
@@ -97,7 +96,7 @@ class HowToPlayScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '最終段階以降は、${GameConstants.sparkleMomentInterval}回建設するごとに'
+                '最終段階以降は、${GameConstants.sparkleMomentInterval}回投入するごとに'
                 'きらめきタイムが再び起こります。クリア後もまちは育ち続け、'
                 '実績の解除やまちスコアの向上を目指せます。',
                 style: TextStyle(color: colorScheme.outline),
@@ -109,7 +108,7 @@ class HowToPlayScreen extends StatelessWidget {
             title: '画面の見方',
             children: const [
               _Bullet(text: 'ホーム — 蓄電池の状態・今日の歩数・発電量・同期'),
-              _Bullet(text: 'まち — 正面から見た町・電灯と電線の広がり・建設'),
+              _Bullet(text: 'まち — 正面から見た町・電灯と電線・電池の投入'),
               _Bullet(text: '履歴 — 日次記録・満タンイベント・きらめきタイム・実績'),
               _Bullet(text: '設定 — 体重・速度・発電係数・まちの名前・天気演出'),
             ],
@@ -118,8 +117,7 @@ class HowToPlayScreen extends StatelessWidget {
             icon: Icons.lightbulb_outline,
             title: 'ヒント',
             children: const [
-              _Bullet(text: '配線キットを使うと蓄電池容量が増え、満タンにしやすくなります。'),
-              _Bullet(text: '街灯アップすると発電効率が上がり、同じ歩数でより多く発電できます。'),
+              _Bullet(text: '電池が溜まったらまち画面で「投入」すると町が発展します。'),
               _Bullet(text: 'まちをタップすると、ハートがふわっと出ます。'),
               _Bullet(text: 'アプリを開くと自動で歩数が同期されます。'),
               _Bullet(text: 'データはすべて端末内に保存され、外部へ送信されません。'),
@@ -220,48 +218,6 @@ class _Bullet extends StatelessWidget {
         children: [
           const Text('•  '),
           Expanded(child: Text(text)),
-        ],
-      ),
-    );
-  }
-}
-
-class _FeedItemRow extends StatelessWidget {
-  final FeedItemType type;
-
-  const _FeedItemRow({required this.type});
-
-  @override
-  Widget build(BuildContext context) {
-    final def = FeedItemDefinitions.of(type);
-    final colorScheme = Theme.of(context).colorScheme;
-
-    final effect = switch (type) {
-      FeedItemType.meal => '発展度 +1',
-      FeedItemType.booster =>
-        '蓄電池容量 +${FeedItemDefinitions.boosterCapacityBonusWh.toStringAsFixed(0)} Wh',
-      FeedItemType.toy =>
-        '発電効率 ×${FeedItemDefinitions.toyCoefficientMultiplier}',
-    };
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Icon(def.icon, color: colorScheme.primary),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${def.displayName}（電池 ${def.batteryCost} 個）',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                Text(effect, style: TextStyle(fontSize: 13, color: colorScheme.outline)),
-              ],
-            ),
-          ),
         ],
       ),
     );

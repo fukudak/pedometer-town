@@ -48,7 +48,7 @@ class CompanionStages {
     return null;
   }
 
-  /// 次の段階までの残り建設回数と、到達時の町の様子。
+  /// 次の段階までの残り投入回数と、到達時の町の様子。
   static ({
     CompanionStage stage,
     int remaining,

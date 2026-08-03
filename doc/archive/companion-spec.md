@@ -4,7 +4,7 @@
 **日付**: 2026-07-30
 **対象**: Phase 1〜6（コアループ置き換え〜仕上げ）
 **進捗管理**: [companion-plan.md](companion-plan.md)
-**前提**: `requirements.md`, `tech-stack.md`, `ai-implementation-spec.md`
+**前提**: `../requirements.md`, `../tech-stack.md`, `../ai-implementation-spec.md`
 
 > 本書は他の AI エージェントが **追加の口頭指示なしで実装できる** ことを目的とする。
 > 迷ったら本書と既存テストを優先する。歩数→エネルギー→蓄電池のコア計算式は変更しない。
@@ -96,7 +96,7 @@ class FeedItemDefinition {
 | booster | げんきの素 | 2 | 蓄電池容量 +2,000 Wh（累積加算） |
 | toy | おもちゃ | 1 | 発電効率 ×1.1（累積乗算） |
 
-数値は `ai-implementation-spec.md` §5 の house/powerPlant/park と完全一致させる（コスト・効果とも）。
+数値は `../ai-implementation-spec.md` §5 の house/powerPlant/park と完全一致させる（コスト・効果とも）。
 `boosterCapacityBonusWh = 2000.0`、`toyCoefficientMultiplier = 1.1` を定数として保持する。
 
 ### 1.3 CompanionState（旧 TownState）

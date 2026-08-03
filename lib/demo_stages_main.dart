@@ -376,7 +376,7 @@ class _DemoStagesPageState extends State<DemoStagesPage>
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          'あと ${m.remaining} 回建設 →「${m.stage.name}」（${m.hint}）\n'
+                          'あと ${m.remaining} 回投入 →「${m.stage.name}」（${m.hint}）\n'
                           '到達時: 建物 ${m.buildings} 棟・人口 ${m.population} 人',
                           textAlign: TextAlign.center,
                           style: const TextStyle(
@@ -398,7 +398,7 @@ class _DemoStagesPageState extends State<DemoStagesPage>
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      'あと 1 回建設 → 建物 ${TownStats.buildingCount(level + 1)} 棟・'
+                      'あと 1 回投入 → 建物 ${TownStats.buildingCount(level + 1)} 棟・'
                       '人口 ${TownStats.population(level + 1)} 人'
                       '（+${TownStats.buildingCount(level + 1) - buildings} 棟 / '
                       '+${TownStats.population(level + 1) - population} 人）',

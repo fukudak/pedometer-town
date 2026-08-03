@@ -44,7 +44,7 @@ lib/
 ├── utils/         # date_key など共通ユーティリティ
 └── widgets/       # BatteryStockDisplay, companion/
 
-doc/               # 設計・仕様ドキュメント
+doc/               # 設計・仕様ドキュメント（過去分は archive/）
 docs/              # ストア公開・プライバシーポリシー
 test/              # ユニットテスト（仕様の正典の一部）
 ```

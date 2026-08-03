@@ -8,9 +8,9 @@
 **日付**: 2026-07-13  
 **方針**: 見た目・情緒寄り（戦略要素は後回し）  
 **前提ドキュメント**:
-- [requirements.md](requirements.md)
-- [tech-stack.md](tech-stack.md)
-- [ai-implementation-spec.md](ai-implementation-spec.md)
+- [requirements.md](../requirements.md)
+- [tech-stack.md](../tech-stack.md)
+- [ai-implementation-spec.md](../ai-implementation-spec.md)
 - **実装詳細**: [town-atmosphere-spec.md](town-atmosphere-spec.md)
 
 ---
@@ -19,7 +19,7 @@
 
 1. 本書は **進捗の正典** である。作業開始前に進捗表を確認し、完了した Phase を飛ばすこと。
 2. 実装の詳細仕様は [town-atmosphere-spec.md](town-atmosphere-spec.md) を正典とする。
-3. 数値・ゲームルールの正典は引き続き `lib/constants/`・`test/`・`ai-implementation-spec.md`。
+3. 数値・ゲームルールの正典は引き続き `lib/constants/`・`test/`・`../ai-implementation-spec.md`。
 4. **戦略系（手動配置・隣接ボーナス・アップグレード）は本計画の範囲外**。触れないこと。
 5. 各 Phase 完了時に、本書の進捗表を `[x]` に更新し、完了日を記入すること。
 6. 完了判定は「完了条件」をすべて満たすこと。推測で完了扱いにしないこと。

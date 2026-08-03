@@ -8,7 +8,7 @@
 **日付**: 2026-07-13  
 **対象**: Phase 1〜6（見た目・情緒）  
 **進捗管理**: [town-atmosphere-plan.md](town-atmosphere-plan.md)  
-**前提**: `requirements.md`, `tech-stack.md`, `ai-implementation-spec.md`
+**前提**: `../requirements.md`, `../tech-stack.md`, `../ai-implementation-spec.md`
 
 > 本書は他の AI エージェントが **追加の口頭指示なしで実装できる** ことを目的とする。  
 > 迷ったら本書と既存テストを優先し、ゲーム数値は変更しない。

@@ -4,9 +4,9 @@
 **日付**: 2026-07-30
 **方針**: 「町を建設する」コアループを白紙にし、「蓄電した電気で相棒を育てる」に置き換える
 **前提ドキュメント**:
-- [requirements.md](requirements.md)
-- [tech-stack.md](tech-stack.md)
-- [ai-implementation-spec.md](ai-implementation-spec.md)
+- [requirements.md](../requirements.md)
+- [tech-stack.md](../tech-stack.md)
+- [ai-implementation-spec.md](../ai-implementation-spec.md)
 - **実装詳細**: [companion-spec.md](companion-spec.md)
 
 ---
