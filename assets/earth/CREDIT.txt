@@ -1,0 +1,12 @@
+Night Earth lights for Pedometer Town
+
+Base: NASA Black Marble 2016 (Suomi NPP / VIIRS)
+https://earthobservatory.nasa.gov/features/NightLights
+
+`iss_night_lights.jpg` is derived by crushing non-light pixels to black
+so only city lights remain on a dark disc.
+
+Visual direction inspired by NASA ISS Earth night views, e.g.
+https://images.nasa.gov/details/NHQ_2019_0626_Earth%20Views%20from%20the%20ISS
+
+Credit NASA.

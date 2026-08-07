@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../domain/companion_logic.dart';
 import '../domain/models/daily_step_record.dart';
 import '../providers/history_provider.dart';
-import '../widgets/companion/companion_avatar.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
@@ -13,7 +11,7 @@ class HistoryScreen extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('全履歴を削除'),
+        title: const Text('履歴をクリア'),
         content: const Text('過去の歩数・発電量の記録をすべて削除します。元に戻せません。'),
         actions: [
           TextButton(
@@ -22,7 +20,7 @@ class HistoryScreen extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('削除'),
+            child: const Text('クリア'),
           ),
         ],
       ),
@@ -36,26 +34,17 @@ class HistoryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final historyProvider = context.watch<HistoryProvider>();
     final List<DailyStepRecord> records = historyProvider.loadHistory();
-    final fullBatteryEvents = historyProvider.loadFullBatteryEvents();
-    final sparkleEvents = historyProvider.loadSparkleEvents();
-    final achievementEvents = historyProvider.loadAchievementEvents();
-    final stageEvents = historyProvider.loadCompanionStageEvents();
     final colorScheme = Theme.of(context).colorScheme;
-    final isEmpty = records.isEmpty &&
-        fullBatteryEvents.isEmpty &&
-        sparkleEvents.isEmpty &&
-        achievementEvents.isEmpty &&
-        stageEvents.isEmpty;
+    final isEmpty = records.isEmpty;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('履歴'),
         actions: [
-          if (records.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.delete_sweep),
-              tooltip: '全履歴を削除',
+          if (!isEmpty)
+            TextButton(
               onPressed: () => _confirmClearAll(context),
+              child: const Text('クリア'),
             ),
         ],
       ),
@@ -69,105 +58,11 @@ class HistoryScreen extends StatelessWidget {
           : ListView(
               padding: const EdgeInsets.all(16.0),
               children: [
-                if (achievementEvents.isNotEmpty) ...[
-                  Text('🏆 実績', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  ...achievementEvents.map(
-                    (unlocked) => Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: colorScheme.secondaryContainer,
-                          child: Icon(
-                            unlocked.achievement.icon,
-                            size: 18,
-                            color: colorScheme.onSecondaryContainer,
-                          ),
-                        ),
-                        title: Text(unlocked.achievement.title),
-                        subtitle: Text(unlocked.achievement.description),
-                        trailing: Text(_formatDate(unlocked.date)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                if (stageEvents.isNotEmpty) ...[
-                  Text('🌆 まちの記録', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  ...stageEvents.map(
-                    (event) => Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: colorScheme.primaryContainer,
-                          child: CompanionAvatar(
-                            stage: event.stage,
-                            mood: CompanionMood.happy,
-                            size: 28,
-                          ),
-                        ),
-                        title: Text(event.title),
-                        subtitle: Text(event.description),
-                        trailing: Text(_formatDate(event.date)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                if (sparkleEvents.isNotEmpty) ...[
-                  Text(
-                    'きらめきタイム履歴',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  ...sparkleEvents.map(
-                    (event) => Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: colorScheme.primaryContainer,
-                          child: Icon(
-                            Icons.auto_awesome,
-                            size: 18,
-                            color: colorScheme.onPrimaryContainer,
-                          ),
-                        ),
-                        title: Text('きらめき #${event.number}'),
-                        subtitle: Text(_formatDate(event.date)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                if (fullBatteryEvents.isNotEmpty) ...[
-                  Text('満タン履歴', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  ...fullBatteryEvents.map(
-                    (event) => Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: colorScheme.tertiaryContainer,
-                          child: Icon(
-                            Icons.battery_charging_full,
-                            size: 18,
-                            color: colorScheme.onTertiaryContainer,
-                          ),
-                        ),
-                        title: Text('蓄電池 #${event.number} 満タン'),
-                        subtitle: Text(_formatDate(event.date)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                if (records.isNotEmpty)
-                  Text(
-                    '歩数・発電量',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                if (records.isNotEmpty) const SizedBox(height: 8),
+                Text(
+                  '歩数・発電量',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
                 ...records.map((record) {
                   return Dismissible(
                     key: ValueKey(record.date),
@@ -233,6 +128,16 @@ class HistoryScreen extends StatelessWidget {
                     ),
                   );
                 }),
+                const SizedBox(height: 24),
+                OutlinedButton.icon(
+                  onPressed: () => _confirmClearAll(context),
+                  icon: const Icon(Icons.delete_sweep),
+                  label: const Text('履歴をクリア'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: colorScheme.error,
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                ),
               ],
             ),
     );

@@ -102,23 +102,45 @@ class CompanionAtmosphere {
   static ({String title, String description}) stageStory(String stageId) {
     switch (stageId) {
       case 'crack':
-        return (title: '家が建った', description: 'まっさらな土地に、小さな家がひとつ建った。');
+        return (
+          title: '最初の灯り',
+          description: '暗い地球のどこかに、小さな灯りがひとつともった。',
+        );
       case 'hatch':
-        return (title: '電灯の村へ', description: '家が並び、歩いて集めたエネルギーで窓に灯りがついた。');
+        return (
+          title: '村の灯り',
+          description: '歩いて集めたエネルギーが、集落の明かりになって地表に点在しはじめた。',
+        );
       case 'kid':
-        return (title: 'にぎわう街へ', description: '商店や家が増え、街らしくなってきた。');
+        return (
+          title: '街の光帯',
+          description: '街が連なり、衛星から見ると細い光の帯が走りはじめた。',
+        );
       case 'charged':
-        return (title: 'ビルの街へ', description: '高層ビルが立ち、夜のスカイラインが形づくられた。');
+        return (
+          title: '大都市が輝く',
+          description: '大都市圏が白く輝き、夜の地球に明るい核が生まれた。',
+        );
       case 'reliable':
-        return (title: '工業地帯へ', description: '工場と煙突が現れ、町が産業の力で動きだした。');
+        return (
+          title: '大陸の光網',
+          description: '大陸を横断する光の網がつながり、人間の営みが線になって見える。',
+        );
       case 'radiant':
-        return (title: '宇宙基地へ', description: '研究棟と発射台が整備され、空を目指す準備が整った。');
+        return (
+          title: '夜の地球が浮かぶ',
+          description: '夜側の地球のかたちがはっきり浮かび、灯りの地図が姿を現した。',
+        );
       case 'star':
-        return (title: 'ロケット打ち上げ', description: '歩いて集めたエネルギーが、ロケットを空へ押し上げた。');
+        return (
+          title: '軌道から見た地球',
+          description: '歩いて集めたエネルギーが、軌道から眺める夜の地球を全灯に近づけた。',
+        );
       default:
-        return (title: 'まちが発展', description: '町が新しい姿へ発展した。');
+        return (title: '灯りが広がる', description: '地球の夜に、新しい灯りが加わった。');
     }
   }
 
-  static IconData stageIcon(CompanionStage stage) => stage.icon ?? Icons.egg_outlined;
+  static IconData stageIcon(CompanionStage stage) =>
+      stage.icon ?? Icons.public_off_outlined;
 }

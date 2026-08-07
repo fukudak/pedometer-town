@@ -16,14 +16,17 @@ void main() {
                   stage: stage,
                   mood: CompanionMood.happy,
                   size: 48,
+                  interactive: false,
+                  autoSpin: false,
                 ),
             ],
           ),
         ),
       ),
     );
+    await tester.pump();
 
     expect(find.byType(CompanionAvatar), findsNWidgets(CompanionStages.stages.length));
-    expect(find.byType(CustomPaint), findsWidgets);
+    expect(find.byType(ClipOval), findsWidgets);
   });
 }

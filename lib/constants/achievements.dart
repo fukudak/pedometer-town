@@ -39,16 +39,16 @@ class Achievements {
     ),
     Achievement(
       id: 'first_toy',
-      title: 'まちが動きだした',
-      description: '電灯の村に到達した',
+      title: '灯りが広がりはじめた',
+      description: '発展度2に到達した',
       icon: Icons.lightbulb,
       isUnlocked: (companion, sparkleMoments) => companion.level >= 2,
     ),
     Achievement(
       id: 'ten_feeds',
-      title: '立派なまち',
+      title: '夜の地球が輝く',
       description: '合計10回投入した',
-      icon: Icons.location_city,
+      icon: Icons.public,
       isUnlocked: (companion, sparkleMoments) => companion.level >= 10,
     ),
     Achievement(

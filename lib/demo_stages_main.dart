@@ -2,12 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'constants/companion_atmosphere.dart';
 import 'constants/companion_stages.dart';
 import 'domain/companion_logic.dart';
 import 'widgets/companion/companion_avatar.dart';
 
-/// まちの発展デモ（土地 → ロケット → その後は人口・建物が増え続ける）。
+/// 地球の灯りデモ（暗い地球 → 軌道ビュー → その後は灯りが増え続ける）。
 /// 起動例: `flutter run -t lib/demo_stages_main.dart -d chrome`
 void main() {
   runApp(const DemoStagesApp());
@@ -19,7 +18,7 @@ class DemoStagesApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'まちの発展デモ',
+      title: '地球の灯りデモ',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
@@ -153,11 +152,7 @@ class _DemoStagesPageState extends State<DemoStagesPage>
       }
     });
 
-    await _controller.animateToPage(
-      i,
-      duration: const Duration(milliseconds: 450),
-      curve: Curves.easeOutCubic,
-    );
+    await _animateToPage(i);
 
     if (!fromUser) {
       _scheduleAdvance();
@@ -165,6 +160,31 @@ class _DemoStagesPageState extends State<DemoStagesPage>
       _launch
         ..reset()
         ..forward();
+    }
+  }
+
+  Future<void> _animateToPage(int i) async {
+    await _awaitPageController();
+    if (!_controller.hasClients) return;
+    await _controller.animateToPage(
+      i,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Future<void> _jumpToPage(int i) async {
+    await _awaitPageController();
+    if (!_controller.hasClients) return;
+    _controller.jumpToPage(i);
+  }
+
+  Future<void> _awaitPageController() async {
+    // growth 中は PageView が外れるので、戻した直後は次フレームまで待つ。
+    for (var n = 0; n < 8; n++) {
+      if (_controller.hasClients) return;
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
     }
   }
 
@@ -192,8 +212,9 @@ class _DemoStagesPageState extends State<DemoStagesPage>
       _index = 0;
       _growthLevel = 17;
     });
-    _controller.jumpToPage(0);
-    _scheduleAdvance();
+    unawaited(_jumpToPage(0).then((_) {
+      if (mounted) _scheduleAdvance();
+    }));
   }
 
   void _enterGrowthManually() {
@@ -206,25 +227,37 @@ class _DemoStagesPageState extends State<DemoStagesPage>
       _growthLevel = 17;
       _launch.value = 1;
     });
-    _controller.jumpToPage(_stages.length - 1);
+  }
+
+  void _returnToStages() {
+    _autoPlay?.cancel();
+    setState(() {
+      _inGrowth = false;
+      _autoPlaying = false;
+      _finishedGrowth = false;
+      _growthLevel = 17;
+      _launch.value = 1;
+      _index = _stages.length - 1;
+    });
+    unawaited(_jumpToPage(_stages.length - 1));
   }
 
   @override
   Widget build(BuildContext context) {
     final stages = _stages;
-    final stage = _inGrowth ? stages.last : stages[_index];
     final colorScheme = Theme.of(context).colorScheme;
     final level = _displayLevel;
-    final buildings = TownStats.buildingCount(level);
-    final population = TownStats.population(level);
     final story = _inGrowth
         ? (
-            title: 'まちが広がり続ける',
-            description: 'ロケット到達後は新しい段階はなく、建物と人口だけが増えていく。',
+            title: '灯りが広がり続ける',
+            description: '投入するたび、夜の地球がさらに明るくなる。',
           )
-        : (_index == 0
-            ? (title: 'はじまり', description: 'まだ何もない土地。ここからまちが育っていく。')
-            : CompanionAtmosphere.stageStory(stage.id));
+        : (
+            title: level == 0 ? 'はじまり' : '発展度 $level',
+            description: level == 0
+                ? 'まだ暗い地球。投入するほど灯りが増えていく。'
+                : '夜の地球に街の明かりがともっている。',
+          );
 
     final progress = _inGrowth
         ? 0.85 + 0.15 * ((_growthLevel - 17) / (_growthEndLevel - 17)).clamp(0.0, 1.0)
@@ -232,7 +265,7 @@ class _DemoStagesPageState extends State<DemoStagesPage>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('まちの発展デモ'),
+        title: const Text('地球の灯りデモ'),
         actions: [
           IconButton(
             tooltip: _finishedGrowth
@@ -267,7 +300,7 @@ class _DemoStagesPageState extends State<DemoStagesPage>
                       _finishedGrowth
                           ? 'デモ完了'
                           : (_inGrowth
-                              ? '建物・人口が増加中…'
+                              ? '灯りが増加中…'
                               : (_autoPlaying ? '自動再生中…' : '手動')),
                       style: TextStyle(
                         color: _finishedGrowth || _inGrowth
@@ -289,31 +322,6 @@ class _DemoStagesPageState extends State<DemoStagesPage>
               ],
             ),
           ),
-          // 人口・建物
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.apartment,
-                    label: '建物',
-                    value: '$buildings',
-                    unit: '棟',
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.groups,
-                    label: '人口',
-                    value: '$population',
-                    unit: '人',
-                  ),
-                ),
-              ],
-            ),
-          ),
           Expanded(
             child: AnimatedBuilder(
               animation: Listenable.merge([_idle, _launch]),
@@ -328,6 +336,7 @@ class _DemoStagesPageState extends State<DemoStagesPage>
                 }
                 return PageView.builder(
                   controller: _controller,
+                  physics: const NeverScrollableScrollPhysics(),
                   itemCount: stages.length,
                   onPageChanged: (i) {
                     setState(() => _index = i);
@@ -376,8 +385,7 @@ class _DemoStagesPageState extends State<DemoStagesPage>
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          'あと ${m.remaining} 回投入 →「${m.stage.name}」（${m.hint}）\n'
-                          '到達時: 建物 ${m.buildings} 棟・人口 ${m.population} 人',
+                          'あと ${m.remaining} 回投入すると灯りが広がる',
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
@@ -397,13 +405,10 @@ class _DemoStagesPageState extends State<DemoStagesPage>
                       color: colorScheme.secondaryContainer.withValues(alpha: 0.55),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      'あと 1 回投入 → 建物 ${TownStats.buildingCount(level + 1)} 棟・'
-                      '人口 ${TownStats.population(level + 1)} 人'
-                      '（+${TownStats.buildingCount(level + 1) - buildings} 棟 / '
-                      '+${TownStats.population(level + 1) - population} 人）',
+                    child: const Text(
+                      'あと 1 回投入すると灯りがさらに広がる',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontWeight: FontWeight.w600, height: 1.4),
+                      style: TextStyle(fontWeight: FontWeight.w600, height: 1.4),
                     ),
                   ),
                 ],
@@ -421,7 +426,12 @@ class _DemoStagesPageState extends State<DemoStagesPage>
                 separatorBuilder: (_, _) => const SizedBox(width: 6),
                 itemBuilder: (context, i) {
                   return ChoiceChip(
-                    label: Text(stages[i].name, style: const TextStyle(fontSize: 12)),
+                    label: Text(
+                      stages[i].minLevel == 0
+                          ? '0'
+                          : '${stages[i].minLevel}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
                     selected: i == _index,
                     onSelected: (_) => _goToStage(i, fromUser: true),
                   );
@@ -432,8 +442,7 @@ class _DemoStagesPageState extends State<DemoStagesPage>
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'ロケット到達後: 建物 ${TownStats.buildingCount(17)}→$buildings 棟 / '
-                '人口 ${TownStats.population(17)}→$population 人',
+                '拡大フェーズ  発展度 $level',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: colorScheme.outline),
               ),
@@ -444,17 +453,7 @@ class _DemoStagesPageState extends State<DemoStagesPage>
               children: [
                 OutlinedButton(
                   onPressed: _inGrowth
-                      ? () {
-                          setState(() {
-                            _inGrowth = false;
-                            _autoPlaying = false;
-                            _finishedGrowth = false;
-                            _growthLevel = 17;
-                            _launch.value = 1;
-                            _index = stages.length - 1;
-                          });
-                          _controller.jumpToPage(stages.length - 1);
-                        }
+                      ? _returnToStages
                       : (_index <= 0
                           ? null
                           : () => _goToStage(_index - 1, fromUser: true)),
@@ -503,62 +502,6 @@ class _DemoStagesPageState extends State<DemoStagesPage>
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final String unit;
-
-  const _StatCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.unit,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            Icon(icon, color: colorScheme.primary),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: TextStyle(fontSize: 12, color: colorScheme.outline)),
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: value,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        TextSpan(
-                          text: ' $unit',
-                          style: TextStyle(fontSize: 13, color: colorScheme.outline),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _StageSlide extends StatelessWidget {
   final CompanionStage stage;
   final double idleValue;
@@ -574,21 +517,19 @@ class _StageSlide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isNightish = stage.id == 'charged' ||
-        stage.id == 'reliable' ||
-        stage.id == 'radiant' ||
-        stage.id == 'star';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: isNightish
-                ? const [Color(0xFF1A237E), Color(0xFF3949AB), Color(0xFFE8EAF6)]
-                : const [Color(0xFF81D4FA), Color(0xFFE8F5E9)],
+            colors: [
+              Color(0xFF000000),
+              Color(0xFF050814),
+              Color(0xFF0A1020),
+            ],
           ),
           borderRadius: BorderRadius.circular(24),
         ),
@@ -600,11 +541,12 @@ class _StageSlide extends StatelessWidget {
               child: CompanionAvatar(
                 stage: stage,
                 mood: CompanionMood.happy,
-                size: 260,
+                size: 280,
                 idleValue: idleValue,
                 launchProgress: launchProgress,
                 developmentLevel: developmentLevel,
                 showSparkles: stage.id == 'star' || stage.id == 'radiant',
+                autoSpin: true,
               ),
             ),
             if (stage.id == 'star' && launchProgress > 0.85)
@@ -621,7 +563,7 @@ class _StageSlide extends StatelessWidget {
                     child: const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: Text(
-                        '🚀 打ち上げ成功！',
+                        '夜の地球が輝く',
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,

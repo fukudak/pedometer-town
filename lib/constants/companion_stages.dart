@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'game_constants.dart';
 
-/// 発展度に応じた町の段階（正面図）。
-/// 家 → 街 → 工業化 → ロケット打ち上げまで育つ。
-/// ロケット到達後は段階は固定で、人口・建物数だけが増え続ける。
+/// 発展度に応じた「夜の地球の灯り」段階。
+/// 暗い地球 → 都市の光帯 → 大陸が輝く → 軌道から見た地球、と育つ。
+/// 最終段階到達後は見た目の段階は固定で、灯りの密度（統計）だけ増え続ける。
 class CompanionStage {
   final String id;
   final String name;
@@ -23,14 +23,14 @@ class CompanionStages {
   CompanionStages._();
 
   static const List<CompanionStage> stages = [
-    CompanionStage(id: 'egg', name: 'まっさらな土地', minLevel: 0),
-    CompanionStage(id: 'crack', name: '小さな家', icon: Icons.cottage, minLevel: 1),
-    CompanionStage(id: 'hatch', name: '電灯の村', icon: Icons.lightbulb, minLevel: 2),
-    CompanionStage(id: 'kid', name: 'にぎわう街', icon: Icons.home_work, minLevel: 4),
-    CompanionStage(id: 'charged', name: 'ビルの街', icon: Icons.apartment, minLevel: 7),
-    CompanionStage(id: 'reliable', name: '工業地帯', icon: Icons.factory, minLevel: 10),
-    CompanionStage(id: 'radiant', name: '宇宙基地', icon: Icons.satellite_alt, minLevel: 13),
-    CompanionStage(id: 'star', name: 'ロケット打ち上げ', icon: Icons.rocket_launch, minLevel: 17),
+    CompanionStage(id: 'egg', name: '暗い地球', minLevel: 0),
+    CompanionStage(id: 'crack', name: '最初の灯り', icon: Icons.nightlight, minLevel: 1),
+    CompanionStage(id: 'hatch', name: '村の灯り', icon: Icons.lightbulb, minLevel: 2),
+    CompanionStage(id: 'kid', name: '街の光帯', icon: Icons.location_city, minLevel: 4),
+    CompanionStage(id: 'charged', name: '大都市が輝く', icon: Icons.apartment, minLevel: 7),
+    CompanionStage(id: 'reliable', name: '大陸の光網', icon: Icons.public, minLevel: 10),
+    CompanionStage(id: 'radiant', name: '夜の地球が浮かぶ', icon: Icons.travel_explore, minLevel: 13),
+    CompanionStage(id: 'star', name: '軌道から見た地球', icon: Icons.satellite_alt, minLevel: 17),
   ];
 
   static CompanionStage forLevel(int level) {
@@ -48,7 +48,7 @@ class CompanionStages {
     return null;
   }
 
-  /// 次の段階までの残り投入回数と、到達時の町の様子。
+  /// 次の段階までの残り投入回数と、到達時の様子。
   static ({
     CompanionStage stage,
     int remaining,
@@ -72,27 +72,27 @@ class CompanionStages {
   static String _hintFor(String stageId) {
     switch (stageId) {
       case 'crack':
-        return '小さな家が建つ';
+        return '地表に最初の灯りがともる';
       case 'hatch':
-        return '電灯がともり村になる';
+        return '小さな集落の灯りが点在する';
       case 'kid':
-        return '商店のある街になる';
+        return '街の光帯が線になって見える';
       case 'charged':
-        return '高層ビルが立ち並ぶ';
+        return '大都市圏が白く輝く';
       case 'reliable':
-        return '工場が現れ工業化する';
+        return '大陸を横断する光の網が見える';
       case 'radiant':
-        return '宇宙基地になる';
+        return '夜の地球のかたちがはっきり浮かぶ';
       case 'star':
-        return 'ロケットが打ち上がる';
+        return '軌道から見た夜の地球になる';
       default:
-        return 'まちが次の姿になる';
+        return '地球の灯りが広がる';
     }
   }
 
   static bool isAtFinalStage(int level) => level >= stages.last.minLevel;
 
-  /// ロケット到達後の追加成長量（0以上）。見た目の段階は変えず、数だけ増やす。
+  /// 最終段階到達後の追加成長量（0以上）。見た目の段階は変えず、数だけ増やす。
   static int postRocketGrowth(int level) {
     final last = stages.last.minLevel;
     return level <= last ? 0 : level - last;
@@ -108,11 +108,11 @@ class CompanionStages {
   }
 }
 
-/// 発展度から導出する町の人口・建物数。
+/// 発展度から導出する「灯り都市」と「照らされた人口」の目安。
 class TownStats {
   TownStats._();
 
-  /// 建物数（ロケット到達後も発展度に応じて増え続ける）
+  /// 灯り都市の数（最終段階後も発展度に応じて増え続ける）
   static int buildingCount(int level) {
     if (level <= 0) return 0;
     const marks = <(int, int)>[
@@ -141,7 +141,7 @@ class TownStats {
     return marks.first.$2;
   }
 
-  /// 人口（建物の密集度が発展とともに上がる）
+  /// 照らされた人口の目安（灯りの密集度が発展とともに上がる）
   static int population(int level) {
     if (level <= 0) return 0;
     final buildings = buildingCount(level);
