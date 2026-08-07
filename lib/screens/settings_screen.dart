@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../constants/game_constants.dart';
 import '../providers/settings_provider.dart';
 import '../services/speed_measurement_service.dart';
+import 'how_to_play_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -269,6 +270,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           FilledButton(
             onPressed: _save,
             child: const Text('保存'),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const HowToPlayScreen()),
+            ),
+            icon: const Icon(Icons.help_outline),
+            label: const Text('遊び方'),
           ),
           const SizedBox(height: 24),
           Center(

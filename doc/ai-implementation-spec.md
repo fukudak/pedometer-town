@@ -1,27 +1,34 @@
 # 万歩計タウン 実装仕様書
 
-**バージョン**: 3.1
-**日付**: 2026-07-31
+**バージョン**: 4.0
+**日付**: 2026-08-08
 **前提ドキュメント**: `requirements.md`, `tech-stack.md`
 
 > 本書は Flutter 版の正式仕様である。
 > **数値・挙動の正典は `lib/constants/`・`test/`・実装コード** を優先する。
 > 過去の置き換え計画（相棒育成など）は [archive/](archive/) を参照。
+>
+> **2026-08-07〜08 の変更**: 相棒の見た目を「町ビルド風の育成キャラクター」から
+> 「夜の地球儀（NASA Black Marble 夜間光画像を球面正射投影し、街明かりが自転する）」に
+> 置き換えた。内部の状態管理（`CompanionProvider`/`CompanionState`/`FeedItemType` 等）や
+> 数値仕様（3〜7章）は変更していない。見た目の実装詳細は
+> [`lib/widgets/companion/companion_avatar.dart`](../lib/widgets/companion/companion_avatar.dart) を参照。
+> この変更に単独の archive 計画書は作成していない（コアループ自体は不変のため）。
 
 ---
 
 ## 0. 概要
 
-完全オフラインの Flutter アプリ。歩数から移動エネルギー(Wh)を計算し蓄電池に蓄積する。蓄電池が満タンになるとストックされ、相棒画面で消費してごはんを与え、相棒が進化する。
+完全オフラインの Flutter アプリ。歩数から移動エネルギー(Wh)を計算し蓄電池に蓄積する。蓄電池が満タンになるとストックされ、まち画面で消費して電力を投入し、夜の地球に街明かりが広がっていく。
 
 ### 画面構成
 
 | 画面 | 役割 |
 |------|------|
 | HomeScreen | 蓄電池・今日の歩数/発電量・自動同期 |
-| CompanionScreen | 進化段階・きげん・満タン蓄電池の消費（給餌）・統計 |
+| CompanionScreen | 発展段階（地球の灯り）・きげん・満タン蓄電池の投入・統計 |
 | HistoryScreen | 日次の歩数・発電量 |
-| SettingsScreen | 体重・速度・発電係数・GPS 速度計測・相棒の名前 |
+| SettingsScreen | 体重・速度・発電係数・GPS 速度計測・まちの名前・遊び方 |
 
 ---
 
@@ -87,10 +94,18 @@ lib/
 │   └── settings_screen.dart
 ├── utils/
 │   └── date_key.dart
-└── widgets/
-    ├── battery_stock_display.dart
-    └── companion/
-        └── companion_weather_overlay.dart
+├── widgets/
+│   ├── battery_stock_display.dart
+│   └── companion/
+│       ├── companion_avatar.dart       # 夜の地球儀（球面投影の街明かり）
+│       └── companion_weather_overlay.dart
+└── demo_stages_main.dart               # 発展段階の見た目デモ専用エントリポイント
+                                         # `flutter run -t lib/demo_stages_main.dart` で起動
+
+assets/
+└── earth/
+    ├── black_marble_2016.jpg           # NASA Black Marble 夜間光（正距円筒図法・地球儀の元データ）
+    └── CREDIT.txt                      # 出典表記
 
 test/
 ├── energy_calculator_test.dart
@@ -103,6 +118,9 @@ test/
 ├── health_service_test.dart
 ├── companion_atmosphere_test.dart
 ├── companion_weather_overlay_test.dart
+├── companion_avatar_test.dart
+├── town_stats_test.dart
+├── home_and_settings_screen_test.dart
 └── widget_test.dart
 ```
 
@@ -277,44 +295,68 @@ bondScore = level × 10 + floor(lifetimeEnergyWh / 100) + sparkleMoments × 50
 | なでる | 相棒タップ → ハプティック + ハート演出 | なし |
 | スクリーンショットモード | セッション限り。ストック・統計等を隠し、相棒＋名前＋段階を中心表示 | なし |
 
-## 5. ごはん
+### 4.8 地球儀ビュー（`CompanionAvatar`）
 
-### 5.1 定義
+`assets/earth/black_marble_2016.jpg`（NASA Black Marble 夜間光、正距円筒図法）から
+街明かりの輝点を緯度経度付きで抽出し、`CustomPainter` で毎フレーム正射投影して描画する。
 
-| type | 表示名 | コスト(Wh換算の満タン蓄電池個数) | 効果 |
-|------|--------|------------------------------------|------|
-| meal | ごはん | 1 | なつき度 +1（数値効果なし） |
-| booster | げんきの素 | 2 | 蓄電池容量 +2,000 Wh |
-| toy | おもちゃ | 1 | 係数 ×1.1（累積乗算） |
+- 自転角・視点の傾きから球面座標→正射投影で各光点を再計算。裏側（z≤0）の点は描画せず、
+  縁に近い点ほど暗く小さくする（`limb` 減衰）ことで、板ではなく球体が回っているように見せる
+- 発展度（`EarthLights`/`TownStats.buildingCount`）に応じて明るい都市から順に点灯していく
+- ドラッグで手動回転可（`interactive: true` の場合）。指を離すと自動回転を再開
+- 発展度17（最終段階）到達時の演出は都市光点の増加のみ。以前あった軌道アーク装飾は
+  地表と無関係に浮いて見えるため 2026-08-08 に削除した
+
+## 5. ごはん（電力投入）
+
+### 5.1 定義（内部実装）
+
+`FeedItemType` とその効果は次のとおり定義されている。ただし **現行 UI（CompanionScreen）は
+種類選択を提供せず、「投入」ボタン1つで常に `meal` として計上する**
+（`companion_screen.dart` の `_investBattery()` がセーブ互換のため内部で meal 固定呼び出しをする、とコメントされている）。
+booster・toy への割当経路だった `CompanionProvider.feedAuto()`（meal→booster→toy の順に自動割当）は
+UIから呼ばれない未使用コードだったため 2026-08-08 に削除した。
+booster・toy の効果自体（`CompanionState`/`feed_item_definitions.dart`）と
+`CompanionProvider.feedChosen(type)` は引き続き存在するが、それを呼び出すUI導線がないため、
+現状は事実上到達不能。
+
+| type | 表示名 | コスト(満タン蓄電池個数) | 効果 | UI から到達可能か |
+|------|--------|---------------------------|------|--------------------|
+| meal | ごはん | 1 | なつき度(発展度) +1（数値効果なし） | ○（唯一の投入経路） |
+| booster | げんきの素 | 2 | 蓄電池容量 +2,000 Wh | ×（呼び出すUI導線がない） |
+| toy | おもちゃ | 1 | 係数 ×1.1（累積乗算） | ×（同上） |
 
 > 給餌に「上限」はない。旧バージョンにあった 5×5 グリッド・空きマス判定は廃止した
 （`CompanionState` は座標を持たず、種類別カウントのみを保持する）。
 
-### 5.2 給餌フロー
+### 5.2 投入フロー（現行 UI）
 
 1. 歩行でエネルギー蓄積 → 満タン到達で `pendingBatteries` 増加
-2. 相棒画面で「あげる」→ ごはんの種類を選択 → `EnergyProvider.consumeStockedBatteries()`
-3. `CompanionProvider.feedChosen(type)` でなつき度・効果を反映（常に成功）
+2. まち画面で「投入」ボタン → `EnergyProvider.consumeStockedBatteries(1)` で蓄電池1個消費
+3. `CompanionProvider.feedChosen(FeedItemType.meal)` を常に呼び出し、発展度 +1（常に成功）
 4. 容量再計算・進化段階祝福・実績チェック・きらめきタイム記録
 
 ---
 
-## 6. 相棒の進化段階
+## 6. 発展段階（地球の灯り）
 
-`CompanionStages.stages` になつき度レベルのしきい値で定義:
+`CompanionStages.stages` に発展度（なつき度と同じ数値、投入回数の合計）のしきい値で定義:
 
-| なつき度 | 段階名 |
-|--------|--------|
-| 0 | まっさらな土地 |
-| 1 | 小さな家 |
-| 2 | 電灯の村 |
-| 4 | にぎわう街 |
-| 7 | ビルの街 |
-| 10 | 工業地帯 |
-| 13 | 宇宙基地 |
-| 17 | ロケット打ち上げ |
+| 発展度 | id | 段階名 |
+|--------|-----|--------|
+| 0 | egg | 暗い地球 |
+| 1 | crack | 最初の灯り |
+| 2 | hatch | 村の灯り |
+| 4 | kid | 街の光帯 |
+| 7 | charged | 大都市が輝く |
+| 10 | reliable | 大陸の光網 |
+| 13 | radiant | 夜の地球が浮かぶ |
+| 17 | star | 軌道から見た地球 |
 
-最終段階到達後、2回給餌するごとに1回きらめきタイムが発生（`GameConstants.sparkleMomentInterval`）。
+最終段階（17）到達後は見た目の段階は固定され、`TownStats.buildingCount`/`population`
+（`CompanionStages.nextMilestone` 経由。`population` は現在 UI 未表示、`buildingCount` は
+地球儀の光点数の算出にのみ使用）と、きらめきタイム回数だけが増え続ける。
+きらめきタイムは2回投入するごとに1回発生（`GameConstants.sparkleMomentInterval`）。
 
 ---
 
@@ -374,6 +416,9 @@ bondScore = level × 10 + floor(lifetimeEnergyWh / 100) + sparkleMoments × 50
 | `health_service_test.dart` | Android 正規化 |
 | `companion_atmosphere_test.dart` | 時間帯・天気・季節判定 |
 | `companion_weather_overlay_test.dart` | 天気演出の表示切り替え |
+| `companion_avatar_test.dart` | 全進化段階での `CompanionAvatar` 描画 |
+| `town_stats_test.dart` | `TownStats.buildingCount`/`population` の算出 |
+| `home_and_settings_screen_test.dart` | ホーム/設定画面のナビゲーション（遊び方ボタンの位置、まちアイコン） |
 | `widget_test.dart` | アプリ起動 |
 
 ---

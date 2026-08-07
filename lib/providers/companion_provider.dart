@@ -110,19 +110,6 @@ class CompanionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 蓄電池が満タンになった回数分、相棒へ自動で給餌する
-  /// （ごはんの種類は meal → booster → toy の順に自動で割り当てられる）。
-  Future<void> feedAuto(int count) async {
-    var sparklesAfter = CompanionStages.sparkleCount(_companion.level);
-    for (var i = 0; i < count; i++) {
-      final type = FeedItemType.values[_companion.level % FeedItemType.values.length];
-      sparklesAfter = await _feed(type);
-    }
-    await _storage.saveCompanionState(_companion);
-    await _checkAchievements(sparkleMoments: sparklesAfter);
-    notifyListeners();
-  }
-
   /// 指定した種類のごはんを与える（永続化・通知は呼び出し元の責務）。
   /// 給餌後のきらめきタイム累計回数を返す。
   Future<int> _feed(FeedItemType type) async {
