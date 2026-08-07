@@ -23,28 +23,20 @@ void main() {
     companionProvider = CompanionProvider(storage, energyProvider, settingsProvider);
   });
 
-  group('CompanionProvider.feedAuto', () {
-    test('1回分与えるとなつき度が1増え、種類は meal から順に割り当てられる', () async {
-      await companionProvider.feedAuto(1);
+  /// 実際のUIと同じく meal を n 回投入する（feedAuto の代替）。
+  Future<void> feedMealTimes(int n) async {
+    for (var i = 0; i < n; i++) {
+      await companionProvider.feedChosen(FeedItemType.meal);
+    }
+  }
 
-      expect(companionProvider.companion.level, 1);
-      expect(companionProvider.companion.mealCount, 1);
-    });
-
-    test('3回分与えると meal, booster, toy の順に割り当てられる', () async {
-      await companionProvider.feedAuto(3);
-
-      expect(companionProvider.companion.mealCount, 1);
-      expect(companionProvider.companion.boosterCount, 1);
-      expect(companionProvider.companion.toyCount, 1);
-    });
-
+  group('CompanionProvider 給餌種別の効果', () {
     test('booster を与えると蓄電池容量が+2000Whされる', () async {
       await energyProvider.applyBatteryState(
         const BatteryState(storedWh: 0, capacityWh: 10000),
       );
 
-      await companionProvider.feedAuto(2); // meal, booster
+      await companionProvider.feedChosen(FeedItemType.booster);
 
       expect(energyProvider.battery.capacityWh, 12000);
     });
@@ -75,7 +67,7 @@ void main() {
 
   group('CompanionProvider きらめきタイム履歴', () {
     test('初きらめき発生日を取得できる', () async {
-      await companionProvider.feedAuto(17);
+      await feedMealTimes(17);
       final today = DateTime.now();
       final expectedDate =
           '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
@@ -85,7 +77,7 @@ void main() {
     });
 
     test('最終進化段階(なつき度17)に到達するときらめき履歴が1件記録される', () async {
-      await companionProvider.feedAuto(17);
+      await feedMealTimes(17);
 
       final events = storage.loadSparkleEvents();
       expect(events.length, 1);
@@ -93,7 +85,7 @@ void main() {
     });
 
     test('最終進化段階到達後、interval回ごとにきらめき回数が増える', () async {
-      await companionProvider.feedAuto(19); // 17 + 2 (interval)
+      await feedMealTimes(19); // 17 + 2 (interval)
 
       final events = storage.loadSparkleEvents();
       expect(events.length, 2);
@@ -102,14 +94,14 @@ void main() {
 
   group('CompanionProvider 愛着スコア', () {
     test('愛着スコアはなつき度・累積発電量・きらめき回数から算出される', () async {
-      await companionProvider.feedAuto(1);
+      await feedMealTimes(1);
       expect(companionProvider.bondScore, 10); // なつき度1×10
     });
   });
 
   group('CompanionProvider 実績', () {
     test('最初のごはんをあげると実績が1件解除される', () async {
-      await companionProvider.feedAuto(1);
+      await feedMealTimes(1);
 
       expect(companionProvider.pendingCelebrations.length, 1);
       expect(companionProvider.pendingCelebrations.first.id, 'first_meal');
@@ -120,17 +112,17 @@ void main() {
     });
 
     test('clearPendingCelebrations 後はキューが空になる', () async {
-      await companionProvider.feedAuto(1);
+      await feedMealTimes(1);
       companionProvider.clearPendingCelebrations();
 
       expect(companionProvider.pendingCelebrations, isEmpty);
     });
 
     test('同じ実績は二重に解除されない', () async {
-      await companionProvider.feedAuto(1);
+      await feedMealTimes(1);
       companionProvider.clearPendingCelebrations();
 
-      await companionProvider.feedAuto(1); // booster が与えられるだけ
+      await feedMealTimes(1); // 2回目の meal 投入
 
       expect(
         companionProvider.pendingCelebrations.any((a) => a.id == 'first_meal'),
@@ -139,7 +131,7 @@ void main() {
     });
 
     test('最終進化段階(なつき度17)で初めてのきらめき実績が解除される', () async {
-      await companionProvider.feedAuto(17);
+      await feedMealTimes(17);
 
       final events = storage.loadAchievementEvents();
       expect(events.any((e) => e.id == 'first_sparkle'), isTrue);

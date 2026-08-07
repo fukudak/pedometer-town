@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pedometer_town/data/local_storage.dart';
 import 'package:pedometer_town/domain/models/battery_state.dart';
 import 'package:pedometer_town/domain/models/daily_step_record.dart';
+import 'package:pedometer_town/domain/models/feed_item_type.dart';
 import 'package:pedometer_town/providers/companion_provider.dart';
 import 'package:pedometer_town/providers/energy_provider.dart';
 import 'package:pedometer_town/providers/settings_provider.dart';
@@ -134,8 +135,7 @@ void main() {
       );
       companionProvider = CompanionProvider(storage, provider, settingsProvider);
 
-      // meal, booster, toy の順に3回与え、おもちゃを1つ与える
-      await companionProvider.feedAuto(3);
+      await companionProvider.feedChosen(FeedItemType.toy);
       expect(companionProvider.companion.toyCount, 1);
 
       // 1000歩 @70kg/5km/h, 係数1.0×1.1=1.1 → 1100.0Wh

@@ -6,7 +6,6 @@ import '../services/health_service.dart';
 import '../widgets/battery_stock_display.dart';
 import 'companion_screen.dart';
 import 'history_screen.dart';
-import 'how_to_play_screen.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -74,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         actions: [
           IconButton(
             tooltip: 'まち',
-            icon: const Icon(Icons.location_city),
+            icon: const Icon(Icons.public),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const CompanionScreen()),
             ),
@@ -205,14 +204,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             onPressed: () => _sync(context),
             icon: const Icon(Icons.sync),
             label: const Text('同期'),
-          ),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const HowToPlayScreen()),
-            ),
-            icon: const Icon(Icons.help_outline),
-            label: const Text('遊び方'),
           ),
         ],
       ),

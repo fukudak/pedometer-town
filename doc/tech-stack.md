@@ -1,7 +1,7 @@
 # 万歩計タウン 技術スタック
 
-**バージョン**: 1.1  
-**日付**: 2026-07-31
+**バージョン**: 1.2
+**日付**: 2026-08-08
 
 ---
 
@@ -42,8 +42,9 @@ lib/
 ├── providers/     # Settings, Energy, Companion, History
 ├── screens/       # Home, Companion, History, Settings, HowToPlay
 ├── utils/         # date_key など共通ユーティリティ
-└── widgets/       # BatteryStockDisplay, companion/
+└── widgets/       # BatteryStockDisplay, companion/（CompanionAvatar=地球儀ビュー）
 
+assets/earth/      # 地球儀の元画像（NASA Black Marble 夜間光、CREDIT.txt に出典）
 doc/               # 設計・仕様ドキュメント（過去分は archive/）
 docs/              # ストア公開・プライバシーポリシー
 test/              # ユニットテスト（仕様の正典の一部）
