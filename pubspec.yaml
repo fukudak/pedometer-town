@@ -64,7 +64,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/earth/iss_night_lights.jpg
+    - assets/earth/black_marble_2016.jpg
 
 flutter_icons:
   android: true
