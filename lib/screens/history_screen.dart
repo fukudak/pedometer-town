@@ -12,7 +12,10 @@ class HistoryScreen extends StatelessWidget {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('履歴をクリア'),
-        content: const Text('過去の歩数・発電量の記録をすべて削除します。元に戻せません。'),
+        content: const Text(
+          '過去の歩数・発電量の記録をすべて削除します。'
+          'まちの発展度・蓄電池・累積発電量も初期状態に戻ります。元に戻せません。',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),

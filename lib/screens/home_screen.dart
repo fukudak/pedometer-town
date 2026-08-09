@@ -50,6 +50,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message)),
       );
+    } catch (_) {
+      // HealthServiceException に変換されなかった想定外のエラーへの保険。
+      // 内部例外の詳細はユーザーに見せない。
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('同期中にエラーが発生しました')),
+      );
     } finally {
       _isSyncing = false;
     }

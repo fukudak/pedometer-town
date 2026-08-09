@@ -24,9 +24,6 @@ class GameConstants {
   static const double maxSpeedKmh = 15.0;
   static const double defaultSpeedKmh = 5.0;
 
-  /// アプリのバージョン文字列（pubspec.yaml の version と合わせて管理）
-  static const String appVersion = '0.9';
-
   /// 蓄電池 初期容量 (Wh)
   static const double initialBatteryCapacityWh = 10000.0;
 

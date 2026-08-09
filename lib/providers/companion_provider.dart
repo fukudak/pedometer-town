@@ -31,6 +31,7 @@ class CompanionProvider extends ChangeNotifier {
   FeedEvent? _pendingFeedEvent;
   final Set<String> _celebratedStageIds;
   String? _firstSparkleDate;
+  bool _investing = false;
 
   CompanionProvider(
     this._storage,
@@ -108,6 +109,36 @@ class CompanionProvider extends ChangeNotifier {
     await _storage.saveCompanionState(_companion);
     await _checkAchievements(sparkleMoments: sparklesAfter);
     notifyListeners();
+  }
+
+  /// 満タンストックを1個消費して発展度を1増やす、呼び出し側から見て単一の操作。
+  /// ストック不足なら何もせず false を返す。すでに処理中の呼び出しがあれば
+  /// （連打対策）即座に false を返す。
+  ///
+  /// 消費後の発展更新（[feedChosen]）に失敗した場合は、消費したストックを戻し、
+  /// メモリ上の発展度もこの呼び出し前の状態に戻してから例外を再送出する
+  /// （「電池だけ消費」「発展だけ増加」という不整合を残さないため）。
+  /// ただし [feedChosen] 内部の副次的な永続化（きらめき・実績・進化祝福の記録、
+  /// 蓄電池容量の反映等）はこの呼び出し単位のロールバック対象ではない。
+  Future<bool> investBattery() async {
+    if (_investing) return false;
+    _investing = true;
+    try {
+      final consumed = await _energyProvider.consumeStockedBatteries(1);
+      if (!consumed) return false;
+
+      final companionBeforeFeed = _companion;
+      try {
+        await feedChosen(FeedItemType.meal);
+        return true;
+      } catch (_) {
+        _companion = companionBeforeFeed;
+        await _energyProvider.creditStockedBatteries(1);
+        rethrow;
+      }
+    } finally {
+      _investing = false;
+    }
   }
 
   /// 指定した種類のごはんを与える（永続化・通知は呼び出し元の責務）。
@@ -192,6 +223,14 @@ class CompanionProvider extends ChangeNotifier {
 
     _celebratedStageIds.addAll(newlyReached.map((e) => e.id));
     await _storage.saveCelebratedStageIds(_celebratedStageIds.toList());
+  }
+
+  /// 発展度（投入回数）を初期状態に戻す（全履歴クリアと連動）。
+  /// 蓄電池・累積発電量のリセットは [EnergyProvider.resetProgress] が担う。
+  Future<void> resetProgress() async {
+    _companion = CompanionState.initial();
+    await _storage.saveCompanionState(_companion);
+    notifyListeners();
   }
 
   void _migrateCelebratedStagesIfNeeded() {

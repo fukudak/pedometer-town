@@ -44,7 +44,8 @@ class _PedometerTownAppState extends State<PedometerTownApp> {
     _energyProvider.setCoefficientSupplier(
       () => _companionProvider.effectiveCoefficient,
     );
-    _historyProvider = HistoryProvider(storage, _energyProvider);
+    _historyProvider =
+        HistoryProvider(storage, _energyProvider, _companionProvider);
   }
 
   @override

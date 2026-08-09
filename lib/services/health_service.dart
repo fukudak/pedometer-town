@@ -53,8 +53,11 @@ class HealthService {
   // 前回同期からの増分を算出する。
 
   Future<void> configure() async {
-    if (!Platform.isAndroid) {
+    if (Platform.isAndroid) return;
+    try {
       await _health.configure();
+    } catch (_) {
+      throw const HealthServiceException('健康データの初期設定に失敗しました');
     }
   }
 
@@ -70,7 +73,12 @@ class HealthService {
       return;
     }
 
-    final granted = await _health.requestAuthorization(_types);
+    bool granted;
+    try {
+      granted = await _health.requestAuthorization(_types);
+    } catch (_) {
+      throw const HealthServiceException('歩数へのアクセス許可を確認できませんでした');
+    }
     if (!granted) {
       throw const HealthServiceException('歩数へのアクセスが必要です');
     }
@@ -102,12 +110,14 @@ class HealthService {
     final rawSteps = await _readRawSensorSteps();
     final baseline = storage.loadAndroidStepBaseline();
     final todayKey = formatDateKey(DateTime.now());
+    final cursor = storage.loadTodaySyncedCursor();
+    final alreadySyncedToday = cursor.date == todayKey ? cursor.steps : 0;
 
     final result = normalizeAndroidSteps(
       rawSteps: rawSteps,
       todayKey: todayKey,
       storedBaselineSteps: baseline.steps,
-      alreadySyncedToday: storage.loadDailyStepRecord(todayKey).lastSyncedSteps,
+      alreadySyncedToday: alreadySyncedToday,
     );
 
     await storage.saveAndroidStepBaseline(
@@ -171,7 +181,12 @@ class HealthService {
   Future<int> _getStepsFromHealthKit() async {
     final now = DateTime.now();
     final startOfDay = DateTime(now.year, now.month, now.day);
-    final steps = await _health.getTotalStepsInInterval(startOfDay, now);
+    int? steps;
+    try {
+      steps = await _health.getTotalStepsInInterval(startOfDay, now);
+    } catch (_) {
+      throw const HealthServiceException('歩数データを取得できませんでした');
+    }
     if (steps == null) {
       throw const HealthServiceException('歩数データを取得できませんでした');
     }
@@ -192,6 +207,10 @@ class HealthService {
 
     final startOfDay = DateTime(date.year, date.month, date.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
-    return _health.getTotalStepsInInterval(startOfDay, endOfDay);
+    try {
+      return await _health.getTotalStepsInInterval(startOfDay, endOfDay);
+    } catch (_) {
+      return null;
+    }
   }
 }

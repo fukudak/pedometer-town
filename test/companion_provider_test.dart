@@ -3,11 +3,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:pedometer_town/data/local_storage.dart';
 import 'package:pedometer_town/domain/models/battery_state.dart';
+import 'package:pedometer_town/domain/models/companion_state.dart';
 import 'package:pedometer_town/domain/models/feed_item_type.dart';
 import 'package:pedometer_town/providers/companion_provider.dart';
 import 'package:pedometer_town/providers/energy_provider.dart';
 import 'package:pedometer_town/providers/settings_provider.dart';
 import 'package:pedometer_town/services/health_service.dart';
+
+/// [LocalStorage.saveCompanionState] だけが失敗する状況を再現するフェイク
+/// （投入処理の途中失敗時のロールバックを検証するため）。
+class _ThrowingCompanionSaveStorage extends LocalStorage {
+  _ThrowingCompanionSaveStorage(super.prefs);
+
+  @override
+  Future<void> saveCompanionState(CompanionState companion) async {
+    throw Exception('保存失敗（テスト用）');
+  }
+}
 
 void main() {
   late LocalStorage storage;
@@ -165,6 +177,55 @@ void main() {
       expect(migrated.pendingStageCelebrations, isEmpty);
       expect(migrated.isStageCelebrated('crack'), isTrue);
       expect(migrated.isStageCelebrated('reliable'), isTrue);
+    });
+  });
+
+  group('CompanionProvider.investBattery', () {
+    test('ストックが無ければ何もせず false を返す', () async {
+      final invested = await companionProvider.investBattery();
+
+      expect(invested, isFalse);
+      expect(companionProvider.companion.level, 0);
+    });
+
+    test('正常時はストックと発展度がそれぞれ正確に1変化する', () async {
+      await energyProvider.creditStockedBatteries(3);
+
+      final invested = await companionProvider.investBattery();
+
+      expect(invested, isTrue);
+      expect(companionProvider.companion.level, 1);
+      expect(energyProvider.pendingBatteries, 2);
+    });
+
+    test('ストック1個で投入を連続実行しても発展度は1だけ増える', () async {
+      await energyProvider.creditStockedBatteries(1);
+
+      final results = await Future.wait([
+        companionProvider.investBattery(),
+        companionProvider.investBattery(),
+      ]);
+
+      expect(results.where((succeeded) => succeeded).length, 1);
+      expect(companionProvider.companion.level, 1);
+      expect(energyProvider.pendingBatteries, 0);
+    });
+
+    test('発展更新に失敗した場合、ストックも発展度も変化しない', () async {
+      SharedPreferences.setMockInitialValues({});
+      final throwingStorage =
+          _ThrowingCompanionSaveStorage(await SharedPreferences.getInstance());
+      final throwingSettings = SettingsProvider(throwingStorage);
+      final throwingEnergy =
+          EnergyProvider(throwingStorage, HealthService(), throwingSettings);
+      final throwingCompanion =
+          CompanionProvider(throwingStorage, throwingEnergy, throwingSettings);
+      await throwingEnergy.creditStockedBatteries(1);
+
+      await expectLater(throwingCompanion.investBattery(), throwsException);
+
+      expect(throwingCompanion.companion.level, 0);
+      expect(throwingEnergy.pendingBatteries, 1);
     });
   });
 }
