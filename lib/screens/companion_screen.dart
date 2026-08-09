@@ -9,7 +9,6 @@ import '../constants/companion_atmosphere.dart';
 import '../constants/companion_stages.dart';
 import '../domain/companion_logic.dart';
 import '../domain/models/feed_event.dart';
-import '../domain/models/feed_item_type.dart';
 import '../providers/companion_provider.dart';
 import '../providers/energy_provider.dart';
 import '../providers/settings_provider.dart';
@@ -43,6 +42,7 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
   FeedEvent? _activeFeedEvent;
   bool _showPatHeart = false;
   bool _screenshotMode = false;
+  bool _investing = false;
 
   @override
   void initState() {
@@ -182,28 +182,25 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
   }
 
   /// ストック電池1個を投入してまちを1段階発展させる。
+  /// ストック消費と発展更新は [CompanionProvider.investBattery] 内で
+  /// 呼び出し側から見て単一の操作としてまとめられており、連打しても
+  /// ストック数以上には投入できない。
   Future<void> _investBattery() async {
-    final energyProvider = context.read<EnergyProvider>();
-    final companionProvider = context.read<CompanionProvider>();
-    if (energyProvider.pendingBatteries < 1) return;
-
-    final consumed = await energyProvider.consumeStockedBatteries(1);
-    if (!consumed) return;
-    // セーブ互換のため内部は meal としてカウント（レベルは合計回数）。
-    await companionProvider.feedChosen(FeedItemType.meal);
-    await _showCelebrations();
-  }
-
-  String _moodLabel(CompanionMood mood) {
-    switch (mood) {
-      case CompanionMood.none:
-        return 'お休み中';
-      case CompanionMood.happy:
-        return '元気に稼働中';
-      case CompanionMood.normal:
-        return 'ふつう';
-      case CompanionMood.lonely:
-        return '電力が足りない…';
+    if (_investing) return;
+    setState(() => _investing = true);
+    try {
+      final companionProvider = context.read<CompanionProvider>();
+      final invested = await companionProvider.investBattery();
+      if (invested) {
+        await _showCelebrations();
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('投入に失敗しました。もう一度お試しください。')),
+      );
+    } finally {
+      if (mounted) setState(() => _investing = false);
     }
   }
 
@@ -214,25 +211,16 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
     final settingsProvider = context.watch<SettingsProvider>();
     final pendingBatteries = energyProvider.pendingBatteries;
     final companion = companionProvider.companion;
-    final colorScheme = Theme.of(context).colorScheme;
     final level = companion.level;
     final stage = CompanionStages.forLevel(level);
     final nextStage = CompanionStages.next(level);
     final isFinalStage = CompanionStages.isAtFinalStage(level);
-    final sparkles = CompanionStages.sparkleCount(level);
     final now = widget.now();
-    final timeOfDay = CompanionAtmosphere.timeOfDay(now);
     final weather = CompanionAtmosphere.weatherOf(now);
     final season = CompanionAtmosphere.seasonOf(now);
-    final palette = CompanionAtmosphere.applyWeatherAndSeason(
-      CompanionAtmosphere.paletteOf(timeOfDay),
-      weather: weather,
-      season: season,
-    );
     final companionName = settingsProvider.settings.companionName.trim();
     final displayName = companionName.isEmpty ? 'わたしのまち' : companionName;
     final weatherFxEnabled = settingsProvider.settings.companionWeatherFxEnabled;
-    final firstSparkleDate = companionProvider.firstSparkleDate;
     final pendingFeed = companionProvider.pendingFeedEvent;
     if (pendingFeed != null && _lastHandledFeedAt != pendingFeed.createdAt) {
       _lastHandledFeedAt = pendingFeed.createdAt;
@@ -269,7 +257,6 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
             ]),
             builder: (context, _) {
               return _CompanionStage(
-                skyColor: palette.skyColor,
                 stage: stage,
                 mood: companionProvider.mood,
                 isFinalStage: isFinalStage,
@@ -290,44 +277,11 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
           ),
           const SizedBox(height: 16),
           Center(
-            child: Column(
-              children: [
-                Text(
-                  displayName,
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  level == 0 ? 'まだ暗い地球' : '発展度 $level',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _moodLabel(companionProvider.mood),
-                  style: TextStyle(color: colorScheme.outline),
-                ),
-                if (isFinalStage) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    CompanionStages.postRocketGrowth(level) == 0
-                        ? 'これからは灯りがさらに広がっていく'
-                        : '拡大中（+${CompanionStages.postRocketGrowth(level)}）',
-                    style: TextStyle(fontSize: 12, color: colorScheme.outline),
-                  ),
-                ],
-              ],
+            child: Text(
+              '累積発電量 ${energyProvider.lifetimeEnergyWh.toStringAsFixed(1)} Wh',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ),
-          if (!_screenshotMode && firstSparkleDate != null) ...[
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Chip(
-                avatar: const Icon(Icons.auto_awesome, size: 18),
-                label: Text('初きらめき: $firstSparkleDate'),
-              ),
-            ),
-          ],
           const SizedBox(height: 16),
           if (!_screenshotMode) ...[
             Card(
@@ -347,38 +301,24 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
                       style: FilledButton.styleFrom(
                         minimumSize: const Size(64, 40),
                       ),
-                      onPressed: pendingBatteries == 0 ? null : _investBattery,
+                      onPressed: pendingBatteries == 0 || _investing
+                          ? null
+                          : _investBattery,
                       child: const Text('投入'),
                     ),
                   ],
                 ),
               ),
             ),
-            if (isFinalStage) ...[
-              const SizedBox(height: 4),
-              Center(
-                child: Text(
-                  '✨ きらめきタイム回数: $sparkles',
-                  style: TextStyle(color: colorScheme.outline),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const _NextMilestoneCard.postRocket(),
-            ],
-            if (nextStage != null) ...[
-              const SizedBox(height: 16),
+            const SizedBox(height: 16),
+            if (nextStage != null)
               _NextMilestoneCard(
                 remaining: nextStage.minLevel - level,
                 progress: (level - stage.minLevel) /
                     (nextStage.minLevel - stage.minLevel),
-              ),
-            ],
-            const SizedBox(height: 16),
-            _StatChip(
-              icon: Icons.location_city,
-              label: 'まちスコア',
-              value: '${companionProvider.bondScore}',
-            ),
+              )
+            else
+              const _NextMilestoneCard.postRocket(),
           ],
         ],
       ),
@@ -453,47 +393,8 @@ class _NextMilestoneCard extends StatelessWidget {
   }
 }
 
-class _StatChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _StatChip({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: colorScheme.secondaryContainer,
-              child: Icon(icon, size: 18, color: colorScheme.onSecondaryContainer),
-            ),
-            const SizedBox(width: 12),
-            Text(label, style: TextStyle(color: colorScheme.outline)),
-            const Spacer(),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// 夜の地球ビュー（宇宙背景＋衛星写真の灯り）。
 class _CompanionStage extends StatelessWidget {
-  final Color skyColor;
   final CompanionStage stage;
   final CompanionMood mood;
   final bool isFinalStage;
@@ -508,7 +409,6 @@ class _CompanionStage extends StatelessWidget {
   final VoidCallback onTap;
 
   const _CompanionStage({
-    required this.skyColor,
     required this.stage,
     required this.mood,
     required this.isFinalStage,

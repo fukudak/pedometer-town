@@ -1,7 +1,7 @@
 # 万歩計タウン 技術スタック
 
-**バージョン**: 1.2
-**日付**: 2026-08-08
+**バージョン**: 1.3
+**日付**: 2026-08-10
 
 ---
 
@@ -17,6 +17,7 @@
 | Android 歩数 | `pedometer` ^4.2.0 | ハードウェアステップカウンターセンサー |
 | Android 権限 | `permission_handler` ^12.0.3 | ACTIVITY_RECOGNITION |
 | GPS 速度 | `geolocator` ^13.0.0 | 歩行速度計測（設定画面） |
+| アプリ情報 | `package_info_plus` ^9.0.1 | 設定画面のバージョン表示を `pubspec.yaml` の `version` から実行時取得（2026-08-10 追加。手書き定数との二重管理解消のため） |
 | アイコン | `flutter_launcher_icons` ^0.14.3 | dev 依存 |
 
 ---

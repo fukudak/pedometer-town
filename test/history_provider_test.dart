@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:pedometer_town/data/local_storage.dart';
 import 'package:pedometer_town/domain/models/daily_step_record.dart';
+import 'package:pedometer_town/domain/models/feed_item_type.dart';
+import 'package:pedometer_town/providers/companion_provider.dart';
 import 'package:pedometer_town/providers/energy_provider.dart';
 import 'package:pedometer_town/providers/history_provider.dart';
 import 'package:pedometer_town/providers/settings_provider.dart';
@@ -19,6 +21,7 @@ class _FakeHealthService extends HealthService {
 void main() {
   late LocalStorage storage;
   late EnergyProvider energyProvider;
+  late CompanionProvider companionProvider;
   late HistoryProvider historyProvider;
 
   setUp(() async {
@@ -31,7 +34,14 @@ void main() {
       settingsProvider,
       now: () => DateTime(2026, 6, 19),
     );
-    historyProvider = HistoryProvider(storage, energyProvider);
+    companionProvider = CompanionProvider(
+      storage,
+      energyProvider,
+      settingsProvider,
+      now: () => DateTime(2026, 6, 19),
+    );
+    historyProvider =
+        HistoryProvider(storage, energyProvider, companionProvider);
   });
 
   group('HistoryProvider.loadHistory', () {
@@ -142,6 +152,41 @@ void main() {
 
       expect(historyProvider.loadHistory(), isEmpty);
       expect(energyProvider.today.totalSteps, 0);
+    });
+
+    test('地球の表示（発展度・蓄電池・累積発電量・ストック）も初期状態に戻る', () async {
+      await companionProvider.feedChosen(FeedItemType.meal);
+      await companionProvider.feedChosen(FeedItemType.meal);
+      await energyProvider.applyBatteryState(
+        energyProvider.battery.copyWith(storedWh: 4000),
+      );
+
+      expect(companionProvider.companion.level, 2);
+      expect(energyProvider.battery.storedWh, 4000);
+
+      await historyProvider.clearHistory();
+
+      expect(companionProvider.companion.level, 0);
+      expect(energyProvider.battery.storedWh, 0);
+      expect(energyProvider.battery.capacityWh, 10000);
+      expect(energyProvider.lifetimeEnergyWh, 0);
+      expect(energyProvider.pendingBatteries, 0);
+    });
+
+    test('個別の1日削除では地球の表示はリセットされない', () async {
+      await companionProvider.feedChosen(FeedItemType.meal);
+      await storage.saveDailyStepRecord(
+        const DailyStepRecord(
+          date: '2026-06-19',
+          totalSteps: 500,
+          totalEnergyWh: 5.0,
+          lastSyncedSteps: 500,
+        ),
+      );
+
+      await historyProvider.deleteHistoryRecord('2026-06-19');
+
+      expect(companionProvider.companion.level, 1);
     });
   });
 }

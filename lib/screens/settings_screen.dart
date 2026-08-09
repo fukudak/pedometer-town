@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../constants/game_constants.dart';
@@ -30,9 +31,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late FocusNode _coefficientFocus;
   late FocusNode _companionNameFocus;
 
+  /// pubspec.yaml の version（配布バージョン）から取得する表示用バージョン文字列。
+  /// 取得が終わるまでは null（表示しない）。
+  String? _appVersion;
+
   @override
   void initState() {
     super.initState();
+    unawaited(_loadAppVersion());
     final settings = context.read<SettingsProvider>().settings;
     _weightKg = settings.weightKg;
     _speedKmh = settings.defaultSpeedKmh;
@@ -55,6 +61,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _companionNameFocus = FocusNode()..addListener(() {
       if (!_companionNameFocus.hasFocus) _applyCompanionNameText();
     });
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() => _appVersion = '${info.version}+${info.buildNumber}');
+    } catch (_) {
+      // 取得できない場合はバージョン行を表示しないだけにとどめる。
+    }
   }
 
   @override
@@ -113,6 +129,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _save() async {
+    // フォーカスが残ったまま（フォーカスアウトによる確定を経ずに）保存が押された
+    // 場合でも、入力欄の現在値を必ず検証・反映してから保存する。
+    _applyWeightText();
+    _applySpeedText();
+    _applyCoefficientText();
+    _applyCompanionNameText();
+
     final provider = context.read<SettingsProvider>();
     await provider.updateWeight(_weightKg);
     await provider.updateSpeed(_speedKmh);
@@ -280,14 +303,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             label: const Text('遊び方'),
           ),
           const SizedBox(height: 24),
-          Center(
-            child: Text(
-              'バージョン ${GameConstants.appVersion}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colorScheme.outline,
-                  ),
+          if (_appVersion != null)
+            Center(
+              child: Text(
+                'バージョン $_appVersion',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.outline,
+                    ),
+              ),
             ),
-          ),
         ],
       ),
     );

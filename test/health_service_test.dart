@@ -1,6 +1,19 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:health/health.dart';
 
 import 'package:pedometer_town/services/health_service.dart';
+
+/// HealthKit プラグインの呼び出しが素の例外を投げる状況を再現するフェイク。
+class _ThrowingHealth extends Health {
+  @override
+  Future<int?> getTotalStepsInInterval(
+    DateTime startTime,
+    DateTime endTime, {
+    bool includeManualEntry = true,
+  }) async {
+    throw Exception('plugin channel error');
+  }
+}
 
 /// EnergyProvider.syncStepsFromHealth の加算規約を再現するヘルパー。
 ///
@@ -83,6 +96,25 @@ void main() {
       );
       expect(result.todaySteps, 11000 + 80);
       expect(result.baselineSteps, 80);
+    });
+  });
+
+  group('HealthService プラグイン例外の変換', () {
+    test('今日の歩数取得でプラグイン例外が発生すると HealthServiceException になる', () async {
+      final service = HealthService(health: _ThrowingHealth());
+
+      await expectLater(
+        service.getTodaySteps(),
+        throwsA(isA<HealthServiceException>()),
+      );
+    });
+
+    test('さかのぼり取得でプラグイン例外が発生すると null を返す（例外を投げない）', () async {
+      final service = HealthService(health: _ThrowingHealth());
+
+      final result = await service.getStepsForDate(DateTime(2026, 6, 1));
+
+      expect(result, isNull);
     });
   });
 

@@ -7,6 +7,7 @@ import 'package:pedometer_town/domain/models/daily_step_record.dart';
 import 'package:pedometer_town/domain/models/feed_item_type.dart';
 import 'package:pedometer_town/providers/companion_provider.dart';
 import 'package:pedometer_town/providers/energy_provider.dart';
+import 'package:pedometer_town/providers/history_provider.dart';
 import 'package:pedometer_town/providers/settings_provider.dart';
 import 'package:pedometer_town/services/health_service.dart';
 import 'package:pedometer_town/utils/date_key.dart';
@@ -20,6 +21,10 @@ class FakeHealthService extends HealthService {
   /// さかのぼり取得（[getStepsForDate]）が日付ごとに返す歩数。
   /// 未設定の日付は null（＝取得できない）を返す。
   final Map<String, int> stepsByDate = {};
+
+  /// この日付集合に含まれる日は [getStepsForDate] が例外を投げる
+  /// （1日だけの取得失敗が他の日を巻き込まないことを検証するため）。
+  final Set<String> throwingDates = {};
 
   FakeHealthService({this.totalSteps = 0});
 
@@ -38,7 +43,11 @@ class FakeHealthService extends HealthService {
 
   @override
   Future<int?> getStepsForDate(DateTime date) async {
-    return stepsByDate[formatDateKey(date)];
+    final key = formatDateKey(date);
+    if (throwingDates.contains(key)) {
+      throw Exception('$key の取得に失敗（テスト用）');
+    }
+    return stepsByDate[key];
   }
 }
 
@@ -332,6 +341,175 @@ void main() {
       expect(provider.battery.storedWh, 500);
       expect(provider.today.totalSteps, 1234);
       expect(provider.today.totalEnergyWh, closeTo(12.34, 1e-9));
+    });
+  });
+
+  group('EnergyProvider 同期カーソルの移行互換', () {
+    test('カーソル導入前のバージョンからの更新直後は、旧lastSyncedStepsを起点にする', () async {
+      final now = DateTime(2026, 6, 19, 8);
+      // 同期カーソル（today_synced_*）が存在しない状態で、旧方式の日次記録だけが
+      // 500歩まで同期済みとして残っている状況を再現する。
+      await storage.saveDailyStepRecord(
+        const DailyStepRecord(
+          date: '2026-06-19',
+          totalSteps: 500,
+          totalEnergyWh: 500.0,
+          lastSyncedSteps: 500,
+        ),
+      );
+
+      final provider = EnergyProvider(
+        storage,
+        healthService,
+        settingsProvider,
+        now: () => now,
+      );
+
+      healthService.totalSteps = 500;
+      await provider.syncStepsFromHealth();
+
+      expect(provider.lifetimeEnergyWh, 0, reason: '更新直後の同期で再加算されないこと');
+
+      healthService.totalSteps = 600;
+      await provider.syncStepsFromHealth();
+      expect(provider.lifetimeEnergyWh, closeTo(100.0, 1e-9));
+    });
+  });
+
+  group('EnergyProvider 履歴削除後の同期(二重加算防止)', () {
+    test('今日の履歴を削除しても、同じ歩数の再同期では発電量・蓄電池・累積発電量が増えない', () async {
+      final now = DateTime(2026, 6, 19, 8);
+      final provider = EnergyProvider(
+        storage,
+        healthService,
+        settingsProvider,
+        now: () => now,
+      );
+      final companionProvider = CompanionProvider(
+        storage,
+        provider,
+        settingsProvider,
+        now: () => now,
+      );
+      final historyProvider =
+          HistoryProvider(storage, provider, companionProvider);
+
+      // 1. 今日500歩を同期する。
+      healthService.totalSteps = 500;
+      await provider.syncStepsFromHealth();
+      expect(provider.today.totalSteps, 500);
+      expect(provider.today.totalEnergyWh, closeTo(500.0, 1e-9));
+      expect(provider.lifetimeEnergyWh, closeTo(500.0, 1e-9));
+
+      // 2. 今日の履歴を削除する。
+      await historyProvider.deleteHistoryRecord('2026-06-19');
+      expect(provider.today.totalSteps, 0);
+
+      // 3. HealthKit相当のサービスが引き続き500歩を返す。
+      // 4. 再同期しても発電量・蓄電池・累積発電量が増えない。
+      await provider.syncStepsFromHealth();
+      expect(provider.battery.storedWh, closeTo(500.0, 1e-9));
+      expect(provider.lifetimeEnergyWh, closeTo(500.0, 1e-9));
+
+      // 5. その後600歩を返した場合は差分100歩だけ加算される。
+      healthService.totalSteps = 600;
+      await provider.syncStepsFromHealth();
+      expect(provider.battery.storedWh, closeTo(600.0, 1e-9));
+      expect(provider.lifetimeEnergyWh, closeTo(600.0, 1e-9));
+    });
+
+    test('全履歴クリアでも同じ動作になる', () async {
+      final now = DateTime(2026, 6, 19, 8);
+      final provider = EnergyProvider(
+        storage,
+        healthService,
+        settingsProvider,
+        now: () => now,
+      );
+      final companionProvider = CompanionProvider(
+        storage,
+        provider,
+        settingsProvider,
+        now: () => now,
+      );
+      final historyProvider =
+          HistoryProvider(storage, provider, companionProvider);
+
+      healthService.totalSteps = 500;
+      await provider.syncStepsFromHealth();
+
+      await historyProvider.clearHistory();
+      // 全履歴クリアは発展度・蓄電池・累積発電量も初期化するため、ここでは
+      // 「同期カーソルが保持され、二重加算されないこと」だけを確認する。
+      expect(provider.lifetimeEnergyWh, 0);
+
+      await provider.syncStepsFromHealth();
+      expect(provider.lifetimeEnergyWh, 0, reason: '同期済み500歩が再加算されないこと');
+
+      healthService.totalSteps = 600;
+      await provider.syncStepsFromHealth();
+      expect(provider.lifetimeEnergyWh, closeTo(100.0, 1e-9));
+    });
+  });
+
+  group('EnergyProvider さかのぼり同期の冪等性', () {
+    test('複数日のさかのぼり処理中に1日だけ取得失敗しても、他の日は正常に反映される', () async {
+      var now = DateTime(2026, 6, 16, 8);
+      final provider = EnergyProvider(
+        storage,
+        healthService,
+        settingsProvider,
+        now: () => now,
+      );
+
+      healthService.totalSteps = 0;
+      await provider.syncStepsFromHealth(); // 起点を作る
+
+      healthService.stepsByDate['2026-06-17'] = 1000;
+      healthService.throwingDates.add('2026-06-18');
+      healthService.stepsByDate['2026-06-19'] = 3000;
+
+      now = DateTime(2026, 6, 20, 8);
+      healthService.totalSteps = 0;
+      await provider.syncStepsFromHealth();
+
+      // 失敗した6/18以外は反映されている。
+      expect(provider.lifetimeEnergyWh, closeTo(4000.0, 1e-9));
+      final committed = storage.loadBackfillCommittedDates();
+      expect(committed.contains('2026-06-17'), isTrue);
+      expect(committed.contains('2026-06-18'), isFalse);
+      expect(committed.contains('2026-06-19'), isTrue);
+    });
+
+    test('失敗した日は次回同期で再試行され、成功済みの日は二重加算されない', () async {
+      var now = DateTime(2026, 6, 16, 8);
+      final provider = EnergyProvider(
+        storage,
+        healthService,
+        settingsProvider,
+        now: () => now,
+      );
+
+      healthService.totalSteps = 0;
+      await provider.syncStepsFromHealth();
+
+      healthService.stepsByDate['2026-06-17'] = 1000;
+      healthService.throwingDates.add('2026-06-18');
+      healthService.stepsByDate['2026-06-19'] = 3000;
+
+      now = DateTime(2026, 6, 20, 8);
+      healthService.totalSteps = 0;
+      await provider.syncStepsFromHealth(); // 1回目: 6/18だけ失敗
+
+      // 6/18 の取得が復旧した状態で再同期する。
+      healthService.throwingDates.remove('2026-06-18');
+      healthService.stepsByDate['2026-06-18'] = 500;
+      await provider.syncStepsFromHealth(); // 2回目: 残りを回収
+
+      // 6/17, 6/18, 6/19 の合計が一度だけ反映されている。
+      expect(provider.lifetimeEnergyWh, closeTo(4500.0, 1e-9));
+      final committed = storage.loadBackfillCommittedDates();
+      expect(committed.containsAll(['2026-06-17', '2026-06-18', '2026-06-19']), isTrue);
     });
   });
 }

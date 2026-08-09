@@ -41,6 +41,10 @@ class LocalStorage {
   static const _keyCompanionWeatherFx = 'companion_weather_fx_enabled';
   static const _keyCompanionName = 'companion_name';
   static const _keyCompanionLastFedAt = 'companion_last_fed_at';
+  static const _keyTodaySyncedDate = 'today_synced_date';
+  static const _keyTodaySyncedSteps = 'today_synced_steps';
+  static const _keyBackfillCommittedDates = 'backfill_committed_dates';
+  static const _keyBackfillFloorDate = 'backfill_floor_date';
 
   PlayerSettings loadPlayerSettings() {
     return PlayerSettings(
@@ -297,5 +301,37 @@ class LocalStorage {
 
   Future<void> saveCompanionLastFedAt(DateTime time) async {
     await _prefs.setString(_keyCompanionLastFedAt, time.toIso8601String());
+  }
+
+  /// 今日すでに同期済みの歩数カーソル（同期差分の計算専用）。
+  /// 画面に表示する日次記録（[loadDailyStepRecord] 等）とは別に保持し、
+  /// 履歴の削除・全クリアの影響を受けない。
+  ({String? date, int steps}) loadTodaySyncedCursor() => (
+        date: _prefs.getString(_keyTodaySyncedDate),
+        steps: _prefs.getInt(_keyTodaySyncedSteps) ?? 0,
+      );
+
+  Future<void> saveTodaySyncedCursor(String date, int steps) async {
+    await _prefs.setString(_keyTodaySyncedDate, date);
+    await _prefs.setInt(_keyTodaySyncedSteps, steps);
+  }
+
+  /// さかのぼり同期で、日次記録・蓄電池等への反映まで完了済みの日付一覧。
+  /// 未完了のまま中断した日は含まれず、次回同期で再試行される。
+  Set<String> loadBackfillCommittedDates() =>
+      (_prefs.getStringList(_keyBackfillCommittedDates) ?? const []).toSet();
+
+  Future<void> saveBackfillCommittedDates(Set<String> dates) async {
+    await _prefs.setStringList(_keyBackfillCommittedDates, dates.toList());
+  }
+
+  /// さかのぼり同期の対象とする最古の日付（これより前の日は対象にしない）。
+  /// 初回同期時の日付で一度だけ固定し、以降は動かさない。
+  /// 「前回同期日時」は同期のたびに更新されるため、それをそのまま基準にすると
+  /// 一度失敗した日が次回以降ずっと対象から外れてしまう問題を避けるための専用値。
+  String? loadBackfillFloorDate() => _prefs.getString(_keyBackfillFloorDate);
+
+  Future<void> saveBackfillFloorDate(String date) async {
+    await _prefs.setString(_keyBackfillFloorDate, date);
   }
 }
