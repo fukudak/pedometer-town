@@ -10,7 +10,6 @@ import '../domain/models/companion_state.dart';
 import '../domain/models/daily_step_record.dart';
 import '../domain/models/full_battery_event.dart';
 import '../domain/models/player_settings.dart';
-import '../domain/models/sparkle_event.dart';
 import '../domain/companion_logic.dart';
 
 /// SharedPreferences ラッパー（全モデルの save / load）
@@ -33,12 +32,10 @@ class LocalStorage {
   static const _keyAndroidBaselineDate = 'health_android_baseline_date';
   static const _keyAndroidBaselineSteps = 'health_android_baseline_steps';
   static const _keyFullBatteryEvents = 'full_battery_events';
-  static const _keySparkleEvents = 'sparkle_events';
   static const _keyAchievementEvents = 'companion_achievement_events';
   static const _keyPendingBatteries = 'pending_batteries';
   static const _keyCelebratedStageIds = 'companion_celebrated_stage_ids';
   static const _keyCompanionStageEvents = 'companion_stage_events';
-  static const _keyCompanionWeatherFx = 'companion_weather_fx_enabled';
   static const _keyCompanionName = 'companion_name';
   static const _keyCompanionLastFedAt = 'companion_last_fed_at';
   static const _keyTodaySyncedDate = 'today_synced_date';
@@ -53,8 +50,6 @@ class LocalStorage {
           _prefs.getDouble(_keySpeed) ?? GameConstants.defaultSpeedKmh,
       energyCoefficient:
           _prefs.getDouble(_keyCoefficient) ?? GameConstants.energyCoefficient,
-      companionWeatherFxEnabled:
-          _prefs.getBool(_keyCompanionWeatherFx) ?? true,
       companionName: _prefs.getString(_keyCompanionName) ?? '',
     );
   }
@@ -63,8 +58,6 @@ class LocalStorage {
     await _prefs.setDouble(_keyWeight, settings.weightKg);
     await _prefs.setDouble(_keySpeed, settings.defaultSpeedKmh);
     await _prefs.setDouble(_keyCoefficient, settings.energyCoefficient);
-    await _prefs.setBool(
-        _keyCompanionWeatherFx, settings.companionWeatherFxEnabled);
     await _prefs.setString(_keyCompanionName, settings.companionName);
   }
 
@@ -220,22 +213,6 @@ class LocalStorage {
   Future<void> saveFullBatteryEvents(List<FullBatteryEvent> events) async {
     await _prefs.setString(
       _keyFullBatteryEvents,
-      jsonEncode(events.map((e) => e.toJson()).toList()),
-    );
-  }
-
-  /// きらめきタイムが発生した記録を、古い順に返す。
-  List<SparkleEvent> loadSparkleEvents() {
-    final json = _prefs.getString(_keySparkleEvents);
-    if (json == null) return [];
-    return (jsonDecode(json) as List<dynamic>)
-        .map((e) => SparkleEvent.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
-
-  Future<void> saveSparkleEvents(List<SparkleEvent> events) async {
-    await _prefs.setString(
-      _keySparkleEvents,
       jsonEncode(events.map((e) => e.toJson()).toList()),
     );
   }

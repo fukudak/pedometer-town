@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../constants/companion_stages.dart';
 import '../constants/game_constants.dart';
-import '../domain/companion_logic.dart';
-import '../widgets/companion/companion_avatar.dart';
 
-/// 操作説明とクリア条件を表示する画面
+/// 操作説明を表示する画面
 class HowToPlayScreen extends StatelessWidget {
   const HowToPlayScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final finalStage = CompanionStages.stages.last;
 
     return Scaffold(
       appBar: AppBar(title: const Text('遊び方')),
@@ -59,62 +55,13 @@ class HowToPlayScreen extends StatelessWidget {
             ],
           ),
           _SectionCard(
-            icon: Icons.public,
-            title: '地球の灯り',
-            children: [
-              const Text('投入を重ねるほど、夜の地球に街の明かりが増えていきます。'),
-              const SizedBox(height: 12),
-              for (final stage in CompanionStages.stages)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      CompanionAvatar(
-                        stage: stage,
-                        mood: CompanionMood.happy,
-                        size: 48,
-                        interactive: false,
-                        autoSpin: false,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          stage.minLevel == 0
-                              ? 'はじまり'
-                              : '発展度 ${stage.minLevel}〜',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-          _SectionCard(
-            icon: Icons.flag,
-            title: 'クリア条件',
-            children: [
-              Text(
-                '発展度が ${finalStage.minLevel} に達すると、'
-                '初めての「きらめきタイム」が起こります。これがメインの目標です。',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '最終段階以降は、${GameConstants.sparkleMomentInterval}回投入するごとに'
-                'きらめきタイムが再び起こります。クリア後も地球の灯りは広がり続け、'
-                '実績の解除やまちスコアの向上を目指せます。',
-                style: TextStyle(color: colorScheme.outline),
-              ),
-            ],
-          ),
-          _SectionCard(
             icon: Icons.menu_book,
             title: '画面の見方',
             children: const [
               _Bullet(text: 'ホーム — 蓄電池の状態・今日の歩数・発電量・同期'),
               _Bullet(text: 'まち — 夜の地球の灯り・電池の投入'),
               _Bullet(text: '履歴 — 日次の歩数・発電量'),
-              _Bullet(text: '設定 — 体重・速度・発電係数・まちの名前・天気演出'),
+              _Bullet(text: '設定 — 体重・速度・発電係数・まちの名前'),
             ],
           ),
           _SectionCard(

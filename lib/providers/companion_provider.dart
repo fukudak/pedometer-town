@@ -12,7 +12,6 @@ import '../domain/models/companion_state.dart';
 import '../domain/models/companion_stage_event.dart';
 import '../domain/models/feed_event.dart';
 import '../domain/models/feed_item_type.dart';
-import '../domain/models/sparkle_event.dart';
 import '../utils/date_key.dart';
 import 'energy_provider.dart';
 import 'settings_provider.dart';
@@ -30,7 +29,6 @@ class CompanionProvider extends ChangeNotifier {
   final List<CompanionStage> _pendingStageCelebrations = [];
   FeedEvent? _pendingFeedEvent;
   final Set<String> _celebratedStageIds;
-  String? _firstSparkleDate;
   bool _investing = false;
 
   CompanionProvider(
@@ -43,9 +41,6 @@ class CompanionProvider extends ChangeNotifier {
         _lastFedAt = _storage.loadCompanionLastFedAt(),
         _celebratedStageIds =
             (_storage.loadCelebratedStageIds() ?? <String>[]).toSet() {
-    final sparkleEvents = _storage.loadSparkleEvents();
-    _firstSparkleDate =
-        sparkleEvents.isEmpty ? null : sparkleEvents.first.date;
     _migrateCelebratedStagesIfNeeded();
   }
 
@@ -68,15 +63,10 @@ class CompanionProvider extends ChangeNotifier {
         _companion,
       );
 
-  /// 初きらめきタイム発生日（未発生なら null）。
-  /// 画面の build から参照されるため、ストレージではなくメモリ上の値を返す。
-  String? get firstSparkleDate => _firstSparkleDate;
-
-  /// なつき度レベル・累積発電量・きらめきタイム回数を合成した愛着スコア
+  /// なつき度レベル・累積発電量を合成した愛着スコア
   int get bondScore => CompanionLogic.bondScore(
         level: _companion.level,
         lifetimeEnergyWh: _energyProvider.lifetimeEnergyWh,
-        sparkleMoments: CompanionStages.sparkleCount(_companion.level),
       );
 
   /// まだ画面で祝福表示されていない、新たに解除された実績一覧。
@@ -105,9 +95,9 @@ class CompanionProvider extends ChangeNotifier {
 
   /// ユーザーが選んだ種類のごはんを相棒に与える（常に成功する）。
   Future<void> feedChosen(FeedItemType type) async {
-    final sparklesAfter = await _feed(type);
+    await _feed(type);
     await _storage.saveCompanionState(_companion);
-    await _checkAchievements(sparkleMoments: sparklesAfter);
+    await _checkAchievements();
     notifyListeners();
   }
 
@@ -118,7 +108,7 @@ class CompanionProvider extends ChangeNotifier {
   /// 消費後の発展更新（[feedChosen]）に失敗した場合は、消費したストックを戻し、
   /// メモリ上の発展度もこの呼び出し前の状態に戻してから例外を再送出する
   /// （「電池だけ消費」「発展だけ増加」という不整合を残さないため）。
-  /// ただし [feedChosen] 内部の副次的な永続化（きらめき・実績・進化祝福の記録、
+  /// ただし [feedChosen] 内部の副次的な永続化（実績・進化祝福の記録、
   /// 蓄電池容量の反映等）はこの呼び出し単位のロールバック対象ではない。
   Future<bool> investBattery() async {
     if (_investing) return false;
@@ -142,13 +132,10 @@ class CompanionProvider extends ChangeNotifier {
   }
 
   /// 指定した種類のごはんを与える（永続化・通知は呼び出し元の責務）。
-  /// 給餌後のきらめきタイム累計回数を返す。
-  Future<int> _feed(FeedItemType type) async {
+  Future<void> _feed(FeedItemType type) async {
     final beforeLevel = _companion.level;
-    final sparklesBefore = CompanionStages.sparkleCount(_companion.level);
     _companion = _companion.addFeed(type);
     final afterLevel = _companion.level;
-    final sparklesAfter = CompanionStages.sparkleCount(_companion.level);
 
     final newCapacity = CompanionLogic.effectiveCapacity(
       GameConstants.initialBatteryCapacityWh,
@@ -161,34 +148,16 @@ class CompanionProvider extends ChangeNotifier {
     _lastFedAt = _now();
     await _storage.saveCompanionLastFedAt(_lastFedAt!);
 
-    if (sparklesAfter > sparklesBefore) {
-      await _recordSparkleMoments(sparklesAfter - sparklesBefore);
-    }
     _pendingFeedEvent = FeedEvent(type: type, createdAt: _now());
     await _recordStageCelebrations(beforeLevel: beforeLevel, afterLevel: afterLevel);
-    return sparklesAfter;
-  }
-
-  /// きらめきタイムの発生を履歴に記録する。
-  Future<void> _recordSparkleMoments(int count) async {
-    final events = _storage.loadSparkleEvents();
-    final todayKey = formatDateKey(_now());
-    final newEvents = [
-      ...events,
-      for (var i = 0; i < count; i++)
-        SparkleEvent(number: events.length + i + 1, date: todayKey),
-    ];
-    await _storage.saveSparkleEvents(newEvents);
-    _firstSparkleDate ??= newEvents.first.date;
   }
 
   /// 新たに条件を満たした実績を解除し、履歴に記録する。
-  Future<void> _checkAchievements({required int sparkleMoments}) async {
+  Future<void> _checkAchievements() async {
     final events = _storage.loadAchievementEvents();
     final unlockedIds = events.map((e) => e.id).toSet();
     final newlyUnlocked = Achievements.all
-        .where((a) =>
-            !unlockedIds.contains(a.id) && a.isUnlocked(_companion, sparkleMoments))
+        .where((a) => !unlockedIds.contains(a.id) && a.isUnlocked(_companion))
         .toList();
     if (newlyUnlocked.isEmpty) return;
 

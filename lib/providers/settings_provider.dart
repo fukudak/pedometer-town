@@ -49,13 +49,6 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 背景の天気演出の有効／無効を更新する。
-  Future<void> updateCompanionWeatherFxEnabled(bool enabled) async {
-    _settings = _settings.copyWith(companionWeatherFxEnabled: enabled);
-    await _storage.savePlayerSettings(_settings);
-    notifyListeners();
-  }
-
   /// 相棒の名前を更新する。空白のみの場合は空文字に戻す（表示側でフォールバック名を出す）。
   Future<void> updateCompanionName(String name) async {
     final trimmed = name.trim();

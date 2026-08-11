@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../constants/companion_atmosphere.dart';
 import '../constants/companion_stages.dart';
 import '../domain/companion_logic.dart';
 import '../domain/models/feed_event.dart';
@@ -14,20 +13,9 @@ import '../providers/energy_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/battery_stock_display.dart';
 import '../widgets/companion/companion_avatar.dart';
-import '../widgets/companion/companion_weather_overlay.dart';
 
 class CompanionScreen extends StatefulWidget {
-  final DateTime Function() now;
-
-  const CompanionScreen({
-    super.key,
-    this.now = DateTime.now,
-  });
-
-  const CompanionScreen.withClock({
-    super.key,
-    required this.now,
-  });
+  const CompanionScreen({super.key});
 
   @override
   State<CompanionScreen> createState() => _CompanionScreenState();
@@ -214,13 +202,8 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
     final level = companion.level;
     final stage = CompanionStages.forLevel(level);
     final nextStage = CompanionStages.next(level);
-    final isFinalStage = CompanionStages.isAtFinalStage(level);
-    final now = widget.now();
-    final weather = CompanionAtmosphere.weatherOf(now);
-    final season = CompanionAtmosphere.seasonOf(now);
     final companionName = settingsProvider.settings.companionName.trim();
     final displayName = companionName.isEmpty ? 'わたしのまち' : companionName;
-    final weatherFxEnabled = settingsProvider.settings.companionWeatherFxEnabled;
     final pendingFeed = companionProvider.pendingFeedEvent;
     if (pendingFeed != null && _lastHandledFeedAt != pendingFeed.createdAt) {
       _lastHandledFeedAt = pendingFeed.createdAt;
@@ -259,11 +242,7 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
               return _CompanionStage(
                 stage: stage,
                 mood: companionProvider.mood,
-                isFinalStage: isFinalStage,
                 developmentLevel: level,
-                weather: weather,
-                season: season,
-                weatherFxEnabled: weatherFxEnabled,
                 idleValue: _idleController.value,
                 feedScale: _activeFeedEvent == null
                     ? 1.0
@@ -397,11 +376,7 @@ class _NextMilestoneCard extends StatelessWidget {
 class _CompanionStage extends StatelessWidget {
   final CompanionStage stage;
   final CompanionMood mood;
-  final bool isFinalStage;
   final int developmentLevel;
-  final CompanionWeather weather;
-  final CompanionSeason season;
-  final bool weatherFxEnabled;
   final double idleValue;
   final double feedScale;
   final bool showPatHeart;
@@ -411,11 +386,7 @@ class _CompanionStage extends StatelessWidget {
   const _CompanionStage({
     required this.stage,
     required this.mood,
-    required this.isFinalStage,
     required this.developmentLevel,
-    required this.weather,
-    required this.season,
-    required this.weatherFxEnabled,
     required this.idleValue,
     required this.feedScale,
     required this.showPatHeart,
@@ -458,7 +429,6 @@ class _CompanionStage extends StatelessWidget {
                   mood: mood,
                   size: 250,
                   idleValue: idleValue,
-                  showSparkles: isFinalStage,
                   developmentLevel: developmentLevel,
                   onTap: onTap,
                   autoSpin: true,
@@ -481,13 +451,6 @@ class _CompanionStage extends StatelessWidget {
                       ),
                     ),
                   ),
-                ),
-              ),
-            if (weatherFxEnabled)
-              Positioned.fill(
-                child: CompanionWeatherOverlay(
-                  weather: weather,
-                  season: season,
                 ),
               ),
           ],

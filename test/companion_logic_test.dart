@@ -50,13 +50,12 @@ void main() {
   });
 
   group('CompanionLogic.bondScore', () {
-    test('level×10 + 累積発電量/100(切捨て) + きらめき×50', () {
+    test('level×10 + 累積発電量/100(切捨て)', () {
       final result = CompanionLogic.bondScore(
         level: 3,
         lifetimeEnergyWh: 250,
-        sparkleMoments: 2,
       );
-      expect(result, 3 * 10 + 2 + 2 * 50);
+      expect(result, 3 * 10 + 2);
     });
   });
 

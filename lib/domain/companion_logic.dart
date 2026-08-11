@@ -31,15 +31,12 @@ class CompanionLogic {
         math.pow(FeedItemDefinitions.toyCoefficientMultiplier, companion.toyCount);
   }
 
-  /// なつき度レベル・累積発電量・きらめきタイム回数を合成した愛着スコア
+  /// なつき度レベル・累積発電量を合成した愛着スコア
   static int bondScore({
     required int level,
     required double lifetimeEnergyWh,
-    required int sparkleMoments,
   }) {
-    return level * 10 +
-        (lifetimeEnergyWh / 100).floor() +
-        sparkleMoments * 50;
+    return level * 10 + (lifetimeEnergyWh / 100).floor();
   }
 
   /// 直近の給餌からの経過時間で相棒のきげんを判定する。

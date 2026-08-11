@@ -21,8 +21,6 @@ class CompanionAvatar extends StatefulWidget {
   final double idleValue;
   final double walkPhase;
   final bool facingRight;
-  final bool showSparkles;
-  final double launchProgress;
   final int developmentLevel;
   final bool interactive;
   final bool autoSpin;
@@ -39,8 +37,6 @@ class CompanionAvatar extends StatefulWidget {
     this.idleValue = 0,
     this.walkPhase = 0,
     this.facingRight = true,
-    this.showSparkles = false,
-    this.launchProgress = 0,
     this.developmentLevel = 0,
     this.interactive = true,
     this.autoSpin = true,
@@ -166,10 +162,7 @@ class _CompanionAvatarState extends State<CompanionAvatar>
                 spin: _displayLon,
                 tilt: _tilt,
                 mood: widget.mood,
-                showSparkles:
-                    widget.showSparkles || widget.launchProgress > 0,
                 idleValue: widget.idleValue,
-                launchProgress: widget.launchProgress,
                 glow: EarthLights.glowFor(level),
               ),
             ),
@@ -371,9 +364,7 @@ class _NightGlobePainter extends CustomPainter {
   /// 視点の傾き（ラジアン）。
   final double tilt;
   final CompanionMood mood;
-  final bool showSparkles;
   final double idleValue;
-  final double launchProgress;
   final double glow;
 
   _NightGlobePainter({
@@ -382,9 +373,7 @@ class _NightGlobePainter extends CustomPainter {
     required this.spin,
     required this.tilt,
     required this.mood,
-    required this.showSparkles,
     required this.idleValue,
-    required this.launchProgress,
     required this.glow,
   });
 
@@ -407,10 +396,6 @@ class _NightGlobePainter extends CustomPainter {
     };
     if (moodTint.a > 0) {
       canvas.drawCircle(center, radius, Paint()..color = moodTint);
-    }
-
-    if (showSparkles) {
-      _paintSparkles(canvas, center, radius);
     }
   }
 
@@ -492,25 +477,6 @@ class _NightGlobePainter extends CustomPainter {
     canvas.drawCircle(center, radius * 0.99, halo);
   }
 
-  void _paintSparkles(Canvas canvas, Offset center, double radius) {
-    final rnd = math.Random(42);
-    final paint = Paint()
-      ..color = const Color(0xAAFFF59D)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.4);
-    for (var i = 0; i < 14; i++) {
-      final ang = idleValue * math.pi * 2 + i * 0.45 + launchProgress * 2;
-      final r = radius * (0.55 + 0.35 * rnd.nextDouble());
-      canvas.drawCircle(
-        Offset(
-          center.dx + math.cos(ang) * r,
-          center.dy + math.sin(ang) * r * 0.78,
-        ),
-        0.9 + (i % 3) * 0.45,
-        paint,
-      );
-    }
-  }
-
   @override
   bool shouldRepaint(covariant _NightGlobePainter oldDelegate) =>
       !identical(oldDelegate.lights, lights) ||
@@ -518,8 +484,6 @@ class _NightGlobePainter extends CustomPainter {
       oldDelegate.spin != spin ||
       oldDelegate.tilt != tilt ||
       oldDelegate.mood != mood ||
-      oldDelegate.showSparkles != showSparkles ||
       oldDelegate.idleValue != idleValue ||
-      oldDelegate.launchProgress != launchProgress ||
       oldDelegate.glow != glow;
 }

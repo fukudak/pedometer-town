@@ -277,16 +277,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 textAlign: TextAlign.left,
                 width: 180,
               ),
-              const SizedBox(height: 8),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('背景の天気演出'),
-                subtitle: const Text('天気と季節のパーティクル表示'),
-                value: context.watch<SettingsProvider>().settings.companionWeatherFxEnabled,
-                onChanged: (value) {
-                  context.read<SettingsProvider>().updateCompanionWeatherFxEnabled(value);
-                },
-              ),
             ],
           ),
           const SizedBox(height: 24),

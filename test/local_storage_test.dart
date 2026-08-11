@@ -10,7 +10,6 @@ import 'package:pedometer_town/domain/models/companion_stage_event.dart';
 import 'package:pedometer_town/domain/models/daily_step_record.dart';
 import 'package:pedometer_town/domain/models/full_battery_event.dart';
 import 'package:pedometer_town/domain/models/player_settings.dart';
-import 'package:pedometer_town/domain/models/sparkle_event.dart';
 
 void main() {
   setUp(() {
@@ -23,7 +22,6 @@ void main() {
       final settings = storage.loadPlayerSettings();
       expect(settings.weightKg, GameConstants.defaultWeightKg);
       expect(settings.defaultSpeedKmh, GameConstants.defaultSpeedKmh);
-      expect(settings.companionWeatherFxEnabled, isTrue);
       expect(settings.companionName, '');
     });
 
@@ -33,14 +31,12 @@ void main() {
         const PlayerSettings(
           weightKg: 84,
           defaultSpeedKmh: 6.0,
-          companionWeatherFxEnabled: false,
           companionName: 'ぴかり',
         ),
       );
       final loaded = storage.loadPlayerSettings();
       expect(loaded.weightKg, 84);
       expect(loaded.defaultSpeedKmh, 6.0);
-      expect(loaded.companionWeatherFxEnabled, isFalse);
       expect(loaded.companionName, 'ぴかり');
     });
   });
@@ -237,28 +233,6 @@ void main() {
       expect(loaded.length, 2);
       expect(loaded[0].number, 1);
       expect(loaded[1].date, '2026-06-21');
-    });
-  });
-
-  group('SparkleEvent', () {
-    test('未保存時は空のリストを返す', () async {
-      final storage = LocalStorage(await SharedPreferences.getInstance());
-      expect(storage.loadSparkleEvents(), isEmpty);
-    });
-
-    test('保存して復元できる', () async {
-      final storage = LocalStorage(await SharedPreferences.getInstance());
-      const events = [
-        SparkleEvent(number: 1, date: '2026-06-20'),
-        SparkleEvent(number: 2, date: '2026-06-22'),
-      ];
-
-      await storage.saveSparkleEvents(events);
-      final loaded = storage.loadSparkleEvents();
-
-      expect(loaded.length, 2);
-      expect(loaded[0].number, 1);
-      expect(loaded[1].date, '2026-06-22');
     });
   });
 
