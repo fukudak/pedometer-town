@@ -5,14 +5,12 @@ class PlayerSettings {
   final double weightKg;
   final double defaultSpeedKmh;
   final double energyCoefficient;
-  final bool companionWeatherFxEnabled;
   final String companionName;
 
   const PlayerSettings({
     this.weightKg = GameConstants.defaultWeightKg,
     this.defaultSpeedKmh = GameConstants.defaultSpeedKmh,
     this.energyCoefficient = GameConstants.energyCoefficient,
-    this.companionWeatherFxEnabled = true,
     this.companionName = '',
   });
 
@@ -32,15 +30,12 @@ class PlayerSettings {
     double? weightKg,
     double? defaultSpeedKmh,
     double? energyCoefficient,
-    bool? companionWeatherFxEnabled,
     String? companionName,
   }) {
     return PlayerSettings(
       weightKg: weightKg ?? this.weightKg,
       defaultSpeedKmh: defaultSpeedKmh ?? this.defaultSpeedKmh,
       energyCoefficient: energyCoefficient ?? this.energyCoefficient,
-      companionWeatherFxEnabled:
-          companionWeatherFxEnabled ?? this.companionWeatherFxEnabled,
       companionName: companionName ?? this.companionName,
     );
   }

@@ -77,35 +77,8 @@ void main() {
     });
   });
 
-  group('CompanionProvider きらめきタイム履歴', () {
-    test('初きらめき発生日を取得できる', () async {
-      await feedMealTimes(17);
-      final today = DateTime.now();
-      final expectedDate =
-          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-
-      expect(companionProvider.firstSparkleDate, isNotNull);
-      expect(companionProvider.firstSparkleDate, expectedDate);
-    });
-
-    test('最終進化段階(なつき度17)に到達するときらめき履歴が1件記録される', () async {
-      await feedMealTimes(17);
-
-      final events = storage.loadSparkleEvents();
-      expect(events.length, 1);
-      expect(events.first.number, 1);
-    });
-
-    test('最終進化段階到達後、interval回ごとにきらめき回数が増える', () async {
-      await feedMealTimes(19); // 17 + 2 (interval)
-
-      final events = storage.loadSparkleEvents();
-      expect(events.length, 2);
-    });
-  });
-
   group('CompanionProvider 愛着スコア', () {
-    test('愛着スコアはなつき度・累積発電量・きらめき回数から算出される', () async {
+    test('愛着スコアはなつき度・累積発電量から算出される', () async {
       await feedMealTimes(1);
       expect(companionProvider.bondScore, 10); // なつき度1×10
     });
@@ -140,13 +113,6 @@ void main() {
         companionProvider.pendingCelebrations.any((a) => a.id == 'first_meal'),
         isFalse,
       );
-    });
-
-    test('最終進化段階(なつき度17)で初めてのきらめき実績が解除される', () async {
-      await feedMealTimes(17);
-
-      final events = storage.loadAchievementEvents();
-      expect(events.any((e) => e.id == 'first_sparkle'), isTrue);
     });
   });
 

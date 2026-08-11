@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Google Play リリース手順 - 万歩計タウン</title>
+<style>
+  html { background: #ffffff; color-scheme: light; }
+  body { font-family: -apple-system, "Hiragino Sans", "Segoe UI", sans-serif; line-height: 1.7; max-width: 760px; margin: 0 auto; padding: 24px; color: #222; background: #ffffff; }
+  h1 { font-size: 1.6em; }
+  h2 { font-size: 1.2em; margin-top: 2em; border-left: 4px solid #3ddc84; padding-left: 8px; }
+  h3 { font-size: 1.02em; margin-top: 1.4em; }
+  table { width: 100%; border-collapse: collapse; margin: 1em 0; }
+  th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 0.92em; vertical-align: top; }
+  th { background: #f5f5f5; }
+  code, pre { font-family: "SF Mono", Menlo, Consolas, monospace; }
+  pre { background: #f5f5f5; padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 0.88em; }
+  code { background: #f0f0f0; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.92em; }
+  .step { counter-increment: step; }
+  ol { padding-left: 1.4em; }
+  blockquote { margin: 1em 0; padding: 10px 16px; background: #f7fbf8; border-left: 4px solid #3ddc84; color: #333; }
+  .note { background: #fff8e1; border-left: 4px solid #ffa000; padding: 10px 16px; margin: 1em 0; font-size: 0.92em; }
+  .warn { background: #fdecea; border-left: 4px solid #d32f2f; padding: 10px 16px; margin: 1em 0; }
+  footer { margin-top: 3em; color: #777; font-size: 0.85em; }
+  a { color: #1a73e8; }
+  nav { font-size: 0.88em; color: #666; margin-bottom: 1.5em; }
+</style>
+</head>
+<body>
+
+<h1>Google Play リリース手順（万歩計タウン）</h1>
+<nav>最終更新: 2026-08-10 ／ Markdown版: <a href="google-play-release-guide.md">google-play-release-guide.md</a> ／ iOS手順: <a href="release-procedures.md">release-procedures.md</a></nav>
+
+<p>この文書はGoogle Play（Android）のみに絞った、実際の操作手順書です。上から順に進めてください。</p>
+
+<h2>0. 事前確認（最優先）</h2>
+<p>このアプリはすでに署名鍵を生成済みです。</p>
+<pre>android/upload-keystore.jks
+android/key.properties</pre>
+<div class="warn"><strong>この2ファイルを失うと、Play Store公開後に同じアプリの更新版を二度と出せなくなります。</strong>まだ安全な場所（パスワード管理ツール、暗号化した外部ドライブ等）にバックアップしていなければ、今すぐバックアップしてください。<code>key.properties</code> にはキーストアのパスワードが平文で書かれているため、ファイル自体の取り扱いにも注意してください。</div>
+<p>どちらも <code>.gitignore</code> 済みでリポジトリにはコミットされません。</p>
+<p>Application ID（Android）: <code>com.pedometertown.pedometer_town</code></p>
+
+<h2>1. プライバシーポリシーを公開する</h2>
+<p>Google Playの審査には公開されたプライバシーポリシーURLが必須です。</p>
+<ol>
+  <li>ブラウザで <code>https://github.com/fukudak/pedometer-town/settings/pages</code> を開く</li>
+  <li>"Build and deployment" の <strong>Source</strong> を <code>Deploy from a branch</code> にする</li>
+  <li><strong>Branch</strong> を <code>master</code>、フォルダを <code>/docs</code> に設定して <strong>Save</strong></li>
+  <li>数分待つと <code>https://fukudak.github.io/pedometer-town/privacy.html</code> でプライバシーポリシーが公開される</li>
+  <li>公開されたURLにアクセスして表示を確認する</li>
+</ol>
+
+<h2>2. Google Play Console に登録する（初回のみ）</h2>
+<ol>
+  <li><code>https://play.google.com/console/signup</code> にアクセス</li>
+  <li>Googleアカウントでログインし、登録料 $25 を支払う（デベロッパーアカウント全体で1回のみ）</li>
+  <li>デベロッパー名・連絡先情報を入力して登録を完了する</li>
+</ol>
+
+<h2>3. アプリを新規作成する</h2>
+<ol>
+  <li>Play Console ダッシュボードで <strong>アプリを作成</strong></li>
+  <li>以下を入力する
+    <table>
+      <tr><th>項目</th><th>入力内容</th></tr>
+      <tr><td>アプリ名</td><td>万歩計タウン</td></tr>
+      <tr><td>デフォルトの言語</td><td>日本語</td></tr>
+      <tr><td>アプリ/ゲーム</td><td>アプリ</td></tr>
+      <tr><td>無料/有料</td><td>選択</td></tr>
+    </table>
+  </li>
+</ol>
+
+<h2>4. ストアの掲載情報を入力する</h2>
+<p>左メニューの <strong>ストアの掲載情報</strong> で入力します。</p>
+<table>
+  <tr><th>項目</th><th>内容</th></tr>
+  <tr><td>簡単な説明（80文字以内）</td><td>歩いて発電し、夜の地球に灯りをともす万歩計アプリ</td></tr>
+  <tr><td>詳細な説明</td><td>下記「アプリの説明文（下書き）」を参照</td></tr>
+  <tr><td>アプリアイコン</td><td><code>assets/app_icon.png</code> から書き出したストア用アイコン</td></tr>
+  <tr><td>スクリーンショット</td><td>手順5で撮影したもの</td></tr>
+  <tr><td>カテゴリ</td><td>健康/フィットネス</td></tr>
+</table>
+
+<h3>アプリの説明文（下書き）</h3>
+<blockquote>
+歩くだけで発電して、夜の地球に街の灯りをともそう。<br><br>
+「万歩計タウン」は、毎日の歩数をエネルギーに変換し、そのエネルギーで夜の地球儀に街明かりを広げていく歩数連動の放置ゲームです。<br><br>
+【主な機能】<br>
+・歩数をエネルギー(Wh)に変換して蓄電池に蓄積<br>
+・満タンになった蓄電池をストックし、まち画面で「投入」して地球の灯りを広げる<br>
+・発展度に応じて夜の地球儀の街明かりが段階的に増えていく（暗い地球 → 軌道から見た地球）<br>
+・地球儀は自転し、ドラッグで手動回転も可能<br>
+・GPSで実際の歩行速度を計測し、設定に反映<br>
+・過去の歩数・発電量の履歴を確認・削除可能<br>
+・体重・歩行速度・発電変換係数・まちの名前をカスタマイズ<br><br>
+歩くモチベーションを、夜の地球を育てる時間に変えてみませんか？<br><br>
+【ご利用にあたって】<br>
+・歩数の取得には、iOSはHealthKit、Androidは歩数センサーを使用します<br>
+・位置情報は歩行速度の計測時のみ使用し、保存されません<br>
+・取得したデータは全て端末内に保存され、外部へ送信されることはありません
+</blockquote>
+<p>（<code>docs/store-listing.md</code> と同内容）</p>
+
+<h2>5. スクリーンショットを準備する</h2>
+<ol>
+  <li>実機または <code>flutter run</code> でシミュレータ／エミュレータを起動してアプリを撮影する</li>
+  <li>最低4〜6枚を推奨。以下の画面が対象
+    <ul>
+      <li>ホーム画面（蓄電池・歩数・発電量が表示された状態）</li>
+      <li>まち画面（地球儀に街明かりがともった状態・累積発電量表示）</li>
+      <li>履歴画面</li>
+      <li>設定画面</li>
+      <li>遊び方画面</li>
+    </ul>
+  </li>
+  <li>Androidは単一サイズで概ね問題ないが、複数デバイスのスクリーンショットがあると印象が良い</li>
+</ol>
+
+<h2>6. アプリのコンテンツ（ポリシー）に回答する</h2>
+<p>左メニューの <strong>ポリシー → アプリのコンテンツ</strong> で以下に回答します。</p>
+<table>
+  <tr><th>項目</th><th>回答内容</th></tr>
+  <tr><td>プライバシーポリシー</td><td>手順1で公開したURL</td></tr>
+  <tr><td>広告</td><td>なし（広告を含まない）</td></tr>
+  <tr><td>コンテンツのレーティング</td><td>アンケートに回答。健康フィットネス系アプリとして概ね「全年齢対象」になる想定</td></tr>
+  <tr><td>データセーフティ</td><td>下記参照</td></tr>
+</table>
+
+<h3>データセーフティフォームの回答方針</h3>
+<table>
+  <tr><th>項目</th><th>回答</th></tr>
+  <tr><td>収集する情報</td><td>歩数、位置情報（速度計測時のみ）、体重・歩行速度・発電変換係数などの設定値</td></tr>
+  <tr><td>用途</td><td>アプリ機能の提供のみ</td></tr>
+  <tr><td>第三者への共有</td><td>なし</td></tr>
+  <tr><td>送信の有無</td><td>端末内保存のみのため「データを収集しているが外部に送信していない」を選択</td></tr>
+  <tr><td>暗号化</td><td>送信自体が発生しないため該当なし</td></tr>
+  <tr><td>ユーザーによる削除可否</td><td>可能（アプリ内の履歴画面から削除でき、アンインストールで全データ削除）</td></tr>
+</table>
+
+<h2>7. Androidビルドを作成する</h2>
+<pre>flutter build appbundle --release</pre>
+<ul>
+  <li>生成物: <code>build/app/outputs/bundle/release/app-release.aab</code></li>
+  <li><code>pubspec.yaml</code> の <code>version:</code>（例 <code>1.0.0+1</code>）がそのままストアのバージョン表示・ビルド番号になる（<code>package_info_plus</code> 経由でアプリ内バージョン表示にも使われる）</li>
+  <li>新しいバージョンをリリースするたびに <code>version:</code> の値（特に <code>+</code> の後のビルド番号）を必ず増やしてから再ビルドする</li>
+</ul>
+
+<h2>8. 内部テスト → 製品版リリース</h2>
+<ol>
+  <li>Play Console 左メニュー <strong>テスト → 内部テスト</strong>（最初は内部テストを推奨）</li>
+  <li><strong>新しいリリースを作成</strong> → 手順7の <code>.aab</code> をアップロード</li>
+  <li>リリースノートを入力して保存 → 確認 → 公開</li>
+  <li>内部テストのテスターとして自分のGoogleアカウントを登録し、テストリンクからインストールして動作確認する</li>
+  <li>問題なければ <strong>製品版</strong> リリースを作成し、同じ <code>.aab</code>（または新しいビルド）を使って審査に提出する</li>
+</ol>
+
+<h2>9. 審査提出後</h2>
+<ul>
+  <li>初回審査は数時間〜数日程度かかる</li>
+  <li>ポリシー違反の指摘があれば、該当箇所を修正して再提出する</li>
+</ul>
+
+<h2>困ったときに確認する箇所</h2>
+<table>
+  <tr><th>問題</th><th>確認先</th></tr>
+  <tr><td>Android署名エラー</td><td><code>android/key.properties</code> の内容、<code>android/upload-keystore.jks</code> の存在</td></tr>
+  <tr><td>データセーフティ審査の指摘</td><td><code>docs/privacy.html</code> の内容とフォームの回答が一致しているか</td></tr>
+  <tr><td>ビルドが古いバージョンのまま</td><td><code>pubspec.yaml</code> の <code>version:</code> を更新してから再ビルド（例: <code>1.0.0+1</code> → <code>1.0.1+2</code>）</td></tr>
+  <tr><td>Kotlin Gradle Plugin の警告</td><td><code>health</code>, <code>pedometer</code>, <code>device_info_plus</code>, <code>package_info_plus</code> が出す非互換警告。現時点ではビルドに影響なし</td></tr>
+</table>
+
+<footer>最終更新日: 2026-08-10</footer>
+</body>
+</html>

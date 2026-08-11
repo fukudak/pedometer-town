@@ -1,6 +1,6 @@
 # 万歩計タウン 実装仕様書
 
-**バージョン**: 5.0
+**バージョン**: 6.0
 **日付**: 2026-08-10
 **前提ドキュメント**: `requirements.md`, `tech-stack.md`
 
@@ -15,12 +15,16 @@
 > [`lib/widgets/companion/companion_avatar.dart`](../lib/widgets/companion/companion_avatar.dart) を参照。
 > この変更に単独の archive 計画書は作成していない（コアループ自体は不変のため）。
 >
-> **2026-08-10 の変更**: CompanionScreen の表示を大幅に簡素化し（発展度の数値・きげんの
-> テキスト・きらめき回数・まちスコアの表示を削除、地球儀の見た目自体は変更なし）、
+> **2026-08-10 の変更（前半）**: CompanionScreen の表示を大幅に簡素化し（発展度の数値・
+> きげんのテキスト・きらめき回数・まちスコアの表示を削除、地球儀の見た目自体は変更なし）、
 > 累積発電量の表示を追加した。あわせて以下の信頼性まわりの修正を行った:
 > 履歴削除後の二重加算防止、さかのぼり同期の冪等化、HealthKit例外処理の統一、
 > 設定画面の未確定入力の保存、電池投入処理のアトミック化、表示バージョンの一元化
-> （`package_info_plus` 導入）。詳細は各節を参照。
+> （`package_info_plus` 導入）。
+>
+> **2026-08-10 の変更（後半）**: きらめきタイム・天気/季節演出を、表示だけでなく
+> **機能ごと完全に削除**した。前半の変更では「内部ロジックは残し表示だけ消す」方針だったが、
+> 後半でこの2機能に限り実装ごと除去する方針に変更している。詳細は 4.5〜4.7, 6, 7 章参照。
 
 ---
 
@@ -37,9 +41,10 @@
 | HistoryScreen | 日次の歩数・発電量。全履歴クリアはまちの発展状況も初期化する |
 | SettingsScreen | 体重・速度・発電係数・GPS 速度計測・まちの名前・遊び方・バージョン表示 |
 
-CompanionScreen は 2026-08-10 に表示を簡素化した。きげん・発展度の数値・きらめき回数・
-まちスコア（愛着スコア）はもう画面に表示されない。これらは内部ロジック（進化段階判定・
-実績解除・地球儀のムード演出など）としては引き続き使われている（4.5〜4.6節参照）。
+CompanionScreen は 2026-08-10 に表示を簡素化した。きげん・発展度の数値・まちスコア
+（愛着スコア）は画面に表示されない（内部ロジックとしては残っている。4.5〜4.6節参照）。
+きらめきタイム・天気/季節演出は表示ではなく機能自体を削除したため、内部ロジックも
+存在しない（4.7章参照）。
 
 ---
 
@@ -52,6 +57,7 @@ CompanionScreen は 2026-08-10 に表示を簡素化した。きげん・発展�
 | 歩数 (Android) | `pedometer` | ^4.2.0 |
 | 権限 | `permission_handler` | ^12.0.3 |
 | GPS | `geolocator` | ^13.0.0 |
+| アプリ情報 | `package_info_plus` | ^9.0.1 |
 | 状態管理 | `provider` | ^6.1.0 |
 | ローカル保存 | `shared_preferences` | ^2.3.0 |
 
@@ -73,7 +79,6 @@ lib/
 │   ├── game_constants.dart
 │   ├── feed_item_definitions.dart
 │   ├── companion_stages.dart
-│   ├── companion_atmosphere.dart
 │   └── achievements.dart
 ├── domain/
 │   ├── models/
@@ -85,7 +90,6 @@ lib/
 │   │   ├── full_battery_event.dart
 │   │   ├── feed_event.dart
 │   │   ├── companion_stage_event.dart
-│   │   ├── sparkle_event.dart
 │   │   └── achievement_event.dart
 │   ├── energy_calculator.dart
 │   └── companion_logic.dart
@@ -110,15 +114,14 @@ lib/
 ├── widgets/
 │   ├── battery_stock_display.dart
 │   └── companion/
-│       ├── companion_avatar.dart       # 夜の地球儀（球面投影の街明かり）
-│       └── companion_weather_overlay.dart
-└── demo_stages_main.dart               # 発展段階の見た目デモ専用エントリポイント
-                                         # `flutter run -t lib/demo_stages_main.dart` で起動
+│       └── companion_avatar.dart        # 夜の地球儀（球面投影の街明かり）
+└── demo_stages_main.dart                # 発展段階の見た目デモ専用エントリポイント
+                                          # `flutter run -t lib/demo_stages_main.dart` で起動
 
 assets/
 └── earth/
-    ├── black_marble_2016.jpg           # NASA Black Marble 夜間光（正距円筒図法・地球儀の元データ）
-    └── CREDIT.txt                      # 出典表記
+    ├── black_marble_2016.jpg            # NASA Black Marble 夜間光（正距円筒図法・地球儀の元データ）
+    └── CREDIT.txt                       # 出典表記
 
 test/
 ├── energy_calculator_test.dart
@@ -129,14 +132,16 @@ test/
 ├── companion_provider_test.dart
 ├── history_provider_test.dart
 ├── health_service_test.dart
-├── companion_atmosphere_test.dart
-├── companion_weather_overlay_test.dart
 ├── companion_avatar_test.dart
 ├── town_stats_test.dart
 ├── home_and_settings_screen_test.dart
 ├── settings_screen_test.dart
 └── widget_test.dart
 ```
+
+> `lib/constants/companion_atmosphere.dart`、`lib/widgets/companion/companion_weather_overlay.dart`、
+> `lib/domain/models/sparkle_event.dart` とそれぞれのテストは、2026-08-10 の天気/季節・
+> きらめきタイム機能の完全削除に伴い削除済み（4.7章参照）。
 
 ---
 
@@ -276,7 +281,6 @@ class PlayerSettings {
   final double weightKg;          // 30.0〜200.0
   final double defaultSpeedKmh;   // 0.5〜15.0
   final double energyCoefficient; // 0.1〜5.0
-  final bool companionWeatherFxEnabled;
   final String companionName;
 }
 ```
@@ -285,8 +289,11 @@ class PlayerSettings {
 - `player_weight_kg`
 - `player_default_speed_kmh`
 - `player_energy_coefficient`
-- `companion_weather_fx_enabled`
 - `companion_name`
+
+> `companionWeatherFxEnabled`（キー `companion_weather_fx_enabled`）は天気/季節演出の
+> 完全削除に伴い 2026-08-10 に削除した。既存インストールに残っている同キーの値は
+> 単に読まれなくなるだけで、害はない。
 
 ### 4.2 BatteryState
 
@@ -327,7 +334,6 @@ class CompanionState {
 |--------|------|------|
 | DailyStepRecord | 日次歩数・発電量 | `daily_record_{YYYY-MM-DD}` |
 | FullBatteryEvent | 蓄電池満タン回数 | `full_battery_events` |
-| SparkleEvent | きらめきタイム発生 | `sparkle_events` |
 | AchievementEvent | 実績解除 | `companion_achievement_events` |
 | CompanionStageEvent | 進化段階到達 | `companion_stage_events` |
 | FeedEvent | 給餌直後の UI 演出 | **非永続**（再起動後は再生しない） |
@@ -343,12 +349,15 @@ class CompanionState {
 
 旧 `town_buildings` キーは companion カウント未作成時のマイグレーション専用（座標は破棄）。
 
+> `SparkleEvent`（キー `sparkle_events`）はきらめきタイム機能の完全削除に伴い
+> 2026-08-10 に削除した。既存インストールに残っている同キーの値は読まれなくなるだけ。
+
 ### 4.5 きげん（CompanionMood）
 
 `CompanionLogic.moodFor` が `companion_last_fed_at` から導出する（きげん自体は非永続）。
-**2026-08-10 以降、CompanionScreen にテキストとしては表示していない。** ただし
-`CompanionAvatar` に `mood` を渡し続けており、地球儀の色味にごく薄いムードティントとして
-反映される（`_IssNightGlobePainter`/`_NightGlobePainter` 内の `moodTint`）。
+CompanionScreen にテキストとしては表示しない。ただし `CompanionAvatar` に `mood` を
+渡し続けており、地球儀の色味にごく薄いムードティントとして反映される
+（`_NightGlobePainter` 内の `moodTint`）。
 
 | 状態 | 条件 | 見た目への反映 |
 |------|------|---------|
@@ -362,29 +371,69 @@ class CompanionState {
 ### 4.6 愛着スコア
 
 ```
-bondScore = level × 10 + floor(lifetimeEnergyWh / 100) + sparkleMoments × 50
+bondScore = level × 10 + floor(lifetimeEnergyWh / 100)
 ```
 
-`CompanionLogic.bondScore` / `CompanionProvider.bondScore`。**2026-08-10 以降、
-CompanionScreen には表示していない**（内部指標として算出だけは続けている。将来
-再表示する場合や完全に不要と判断した場合は本書と `bondScore` 自体の扱いを見直すこと）。
+`CompanionLogic.bondScore` / `CompanionProvider.bondScore`。CompanionScreen には
+表示していない（内部指標として算出だけは続けている）。2026-08-10 のきらめきタイム
+完全削除に伴い、旧式の `sparkleMoments × 50` の項は削除した。
 
-### 4.7 相棒画面の情緒・触れ合い（見た目）
+### 4.7 きらめきタイム・天気/季節演出の完全削除（2026-08-10）
+
+きげん・発展度数値・まちスコアの「表示だけ削除」（4.5〜4.6節、0章）とは異なり、
+きらめきタイムと天気/季節演出は **実装ごと削除** した。理由はユーザー指示による。
+
+**きらめきタイム関連で削除したもの**:
+- `CompanionAvatar`/`_NightGlobePainter` の `showSparkles`/`launchProgress` パラメータと
+  `_paintSparkles`（地球儀上に光の粒を描く視覚効果）
+- `CompanionStages.sparkleCount()`、`GameConstants.sparkleMomentInterval`
+- `CompanionProvider._recordSparkleMoments`、`firstSparkleDate` ゲッター
+- `SparkleEvent` モデル、`LocalStorage.loadSparkleEvents`/`saveSparkleEvents`
+- 実績「はじめてのきらめき」「きらめきの常連」（`Achievements.all` から削除、7章参照）
+- `Achievement.isUnlocked` のシグネチャから `sparkleMoments` 引数を削除
+- `CompanionLogic.bondScore` から `sparkleMoments` 項を削除（4.6節）
+- `demo_stages_main.dart`（デモ画面）の `CompanionAvatar` 呼び出しから `showSparkles`/
+  `launchProgress` 引数を削除（デモ自身の演出用ローカル `launchProgress` 変数は
+  ロケット打ち上げ演出として残置）
+
+**天気/季節演出関連で削除したもの**:
+- `lib/widgets/companion/companion_weather_overlay.dart`（雨・雪・花びら・落ち葉の
+  パーティクル描画ウィジェット）を削除
+- `lib/constants/companion_atmosphere.dart` を削除（`weatherOf`/`seasonOf` を含む。
+  4.9節の旧記述にあった「時間帯パレットのみ削除・天気は残す」という判断は本対応で上書き）
+- `PlayerSettings.companionWeatherFxEnabled`、`SettingsProvider.updateCompanionWeatherFxEnabled`
+- 設定画面の「背景の天気演出」トグル（`SwitchListTile`）
+- `LocalStorage` の `companion_weather_fx_enabled` キー読み書き
+
+**画面への影響**: CompanionScreen から `weather`/`season`/`weatherFxEnabled` 関連の
+状態・ウィジェットをすべて削除。地球儀自体の見た目（自転・街明かり）は変更していない。
+また、これに伴い `CompanionScreen`/`CompanionScreen.withClock` の `now` パラメータ
+（天気・季節の日付計算にのみ使っていた）も未使用になったため削除した。
+
+**遊び方画面の更新**: `HowToPlayScreen` から「地球の灯り」セクション（進化段階一覧の
+プレビュー）と「クリア条件」セクション（きらめきタイムを目標として説明していた部分）を
+ユーザー指示により削除した。「画面の見方」セクションの設定画面説明からも「天気演出」の
+文言を削除した。
+
+**削除したテスト**: `test/companion_atmosphere_test.dart`、
+`test/companion_weather_overlay_test.dart`、および `companion_provider_test.dart`/
+`companion_logic_test.dart`/`local_storage_test.dart` 内のきらめき・天気関連テスト。
+
+### 4.8 相棒画面の情緒・触れ合い（見た目）
 
 | 機能 | 内容 | 永続化 |
 |------|------|--------|
-| 時間帯パレット | 2026-08-10 に削除（`CompanionAtmosphere.timeOfDay`/`paletteOf` 等、地球儀に反映されていなかった未使用コード。4.9節参照） | — |
-| 天気・季節オーバーレイ | 日付シードの天気 + 月の季節パーティクル | `companion_weather_fx_enabled` で ON/OFF |
 | なでる | 相棒タップ → ハプティック + ハート演出 | なし |
 | スクリーンショットモード | セッション限り。ストック・投入カードを隠し、地球儀＋累積発電量のみ表示 | なし |
 
 CompanionScreen の表示は 2026-08-10 に簡素化された。現在表示しているのは
 地球儀（`_CompanionStage`/`CompanionAvatar`、見た目は変更なし）・累積発電量
 （`EnergyProvider.lifetimeEnergyWh`）・ストック表示と投入ボタン・次の発展段階までの
-残り回数カードのみ。まちの名前・発展度の数値・きげんラベル・初きらめき日・きらめき回数・
-まちスコアの表示は削除した（4.5〜4.6節のとおり内部ロジックとしては残っている）。
+残り回数カードのみ。まちの名前・発展度の数値・きげんラベル・まちスコアの表示は削除した
+（4.5〜4.6節のとおり内部ロジックとしては残っている）。きらめきタイム・天気/季節演出は
+4.7節のとおり実装ごと削除した。
 
-### 4.8 地球儀ビュー（`CompanionAvatar`）
+### 4.9 地球儀ビュー（`CompanionAvatar`）
 
 `assets/earth/black_marble_2016.jpg`（NASA Black Marble 夜間光、正距円筒図法）から
 街明かりの輝点を緯度経度付きで抽出し、`CustomPainter` で毎フレーム正射投影して描画する。
@@ -394,31 +443,27 @@ CompanionScreen の表示は 2026-08-10 に簡素化された。現在表示し�
 - 発展度（`EarthLights`/`TownStats.buildingCount`）に応じて明るい都市から順に点灯していく
 - ドラッグで手動回転可（`interactive: true` の場合）。指を離すと自動回転を再開
 - 発展度17（最終段階）到達時の演出は都市光点の増加のみ。以前あった軌道アーク装飾は
-  地表と無関係に浮いて見えるため 2026-08-08 に削除した
+  地表と無関係に浮いて見えるため 2026-08-08 に削除した。きらめき粒子の視覚効果
+  （`showSparkles`）も 2026-08-10 に削除した（4.7節参照）
 
-### 4.9 未使用だった時間帯・天気パレットの整理（2026-08-10）
+### 4.10 未使用だった時間帯パレットの整理（2026-08-08〜10、経緯の記録）
 
 CompanionScreen は元々、時間帯（morning/day/evening/night）と天気・季節から
 `skyColor`/`tileColor` を計算し `_CompanionStage` に渡していたが、現在の地球儀ビューの
 背景は固定の黒〜濃紺グラデーション（宇宙背景）で描画されており、この `skyColor` は
 どこにも参照されず実質未使用だった（`tileColor` に至っては元から未使用）。
-「常に夜側の地球を見せる」という現行デザインとは概念的に衝突するため、時間帯パレットの
-仕組み自体を削除する方針とした：
 
-- `lib/constants/companion_atmosphere.dart`: `CompanionTimeOfDay` enum、
-  `CompanionAtmospherePalette` クラス、`timeOfDay()` / `paletteOf()` /
-  `applyWeatherAndSeason()` を削除。`weatherOf()` / `seasonOf()`
-  （天気パーティクルオーバーレイで使用中）はそのまま残した
-- `lib/screens/companion_screen.dart`: `_CompanionStage` から `skyColor` パラメータを削除
-- `test/companion_atmosphere_test.dart`: 削除した関数のテストを除去
+2026-08-10 の前半対応では「時間帯パレット（`CompanionTimeOfDay`/`paletteOf` 等）のみ削除し、
+天気・季節オーバーレイ自体は残す」という判断だったが、同日後半のユーザー指示により
+天気・季節演出も含めて完全削除する方針に変わった（4.7節）。結果として
+`companion_atmosphere.dart` 自体が存在しない。
 
 `CompanionAtmosphere.stageStory()` / `stageIcon()` も、grep で確認した限り
 どこからも呼ばれていない別件の未使用コードだった（`demo_stages_main.dart` は同等の文言を
-この関数を使わず独自にインライン定義していた）。ユーザー指示により同じタイミングで削除した。
-これに伴い `companion_atmosphere.dart` の `package:flutter/material.dart` /
-`companion_stages.dart` のインポートも不要になったため削除した。
+この関数を使わず独自にインライン定義していた）。ファイルごと削除したため、これらも
+自動的に削除された。
 
-### 4.10 設定画面: フォーカスを外さない保存の反映（2026-08-10）
+### 4.11 設定画面: フォーカスを外さない保存の反映（2026-08-10）
 
 `SettingsScreen._save()` は以前、体重・速度・係数・まちの名前の入力を
 `TextEditingController` の値ではなく、フォーカスアウト時（`FocusNode` リスナー）または
@@ -460,7 +505,7 @@ booster・toy の効果自体（`CompanionState`/`feed_item_definitions.dart`）
 2. まち画面で「投入」ボタン → `CompanionProvider.investBattery()` を呼ぶ
 3. `investBattery()` 内でストック消費（`EnergyProvider.consumeStockedBatteries(1)`）と
    発展更新（`feedChosen(FeedItemType.meal)`）を呼び出し側から見て単一の操作として実行する
-4. 容量再計算・進化段階祝福・実績チェック・きらめきタイム記録
+4. 容量再計算・進化段階祝福・実績チェック
 
 #### 5.2.1 電池投入処理のアトミック化（2026-08-10）
 
@@ -482,7 +527,7 @@ booster・toy の効果自体（`CompanionState`/`feed_item_definitions.dart`）
   `investBattery()` が例外を投げた場合は SnackBar で通知する
 
 **残る制約**: ロールバックの対象は「ストック消費」と「`CompanionState` の発展度」に限る。
-`feedChosen`/`_feed` 内部の副次的な永続化（きらめき・実績・進化祝福の記録、
+`feedChosen`/`_feed` 内部の副次的な永続化（実績・進化祝福の記録、
 `EnergyProvider.applyBatteryState` による蓄電池容量の反映、`companion_last_fed_at` の
 更新）は、そこに到達した時点で個別に永続化されるため、この呼び出し単位のロールバック
 対象にはなっていない。完全なトランザクション化は本対応のスコープ外。
@@ -506,22 +551,20 @@ booster・toy の効果自体（`CompanionState`/`feed_item_definitions.dart`）
 
 最終段階（17）到達後は見た目の段階は固定され、`TownStats.buildingCount`/`population`
 （`CompanionStages.nextMilestone` 経由。`population` は現在 UI 未表示、`buildingCount` は
-地球儀の光点数の算出にのみ使用）と、きらめきタイム回数だけが増え続ける。
-きらめきタイムは2回投入するごとに1回発生（`GameConstants.sparkleMomentInterval`）。
-きらめきタイムの視覚効果（`CompanionAvatar` の `showSparkles`）は最終段階で表示され続けるが、
-回数のテキスト表示は 2026-08-10 に CompanionScreen から削除した（内部カウントは継続）。
+地球儀の光点数の算出にのみ使用）だけが増え続ける。きらめきタイム演出・回数カウントは
+2026-08-10 に機能ごと削除した（4.7節）。
 
 ---
 
 ## 7. 実績
 
-`lib/constants/achievements.dart` に定義（6種）:
+`lib/constants/achievements.dart` に定義（4種。2026-08-10 にきらめきタイム関連の
+「はじめてのきらめき」「きらめきの常連」を削除し、6種から4種になった）:
 
-- はじめてのごはん / げんきの素デビュー / 一緒に遊ぶ道具
-- すっかりなついた（なつき度10）
-- はじめてのきらめき / きらめきの常連（きらめきタイム 1回 / 5回）
+- はじめての投入 / 電力が回りはじめた / 灯りが広がりはじめた / 夜の地球が輝く
 
-解除時は相棒画面で祝福ダイアログ表示。
+解除条件は `Achievement.isUnlocked(CompanionState companion)`（`CompanionState` のみを
+引数に取る。旧 `sparkleMoments` 引数は削除済み）。解除時は相棒画面で祝福ダイアログ表示。
 
 ---
 
@@ -529,14 +572,17 @@ booster・toy の効果自体（`CompanionState`/`feed_item_definitions.dart`）
 
 | Provider | 状態 | 主要メソッド |
 |----------|------|--------------|
-| SettingsProvider | PlayerSettings | `updateWeight`, `updateSpeed`, `updateCoefficient`, `updateCompanionName`, `updateCompanionWeatherFxEnabled` |
+| SettingsProvider | PlayerSettings | `updateWeight`, `updateSpeed`, `updateCoefficient`, `updateCompanionName` |
 | EnergyProvider | BatteryState, DailyStepRecord, pendingBatteries, lifetimeEnergyWh | `syncStepsFromHealth`, `consumeStockedBatteries`, `creditStockedBatteries`（ロールバック用）, `resetProgress`, `refreshDisplay` |
-| CompanionProvider | CompanionState, mood, bondScore, 実績・進化キュー, FeedEvent | `feedChosen`, `investBattery`（ストック消費+発展更新の単一操作）, `resetProgress`, `effectiveCapacityWh`, `effectiveCoefficient`, `firstSparkleDate` |
+| CompanionProvider | CompanionState, mood, bondScore, 実績・進化キュー, FeedEvent | `feedChosen`, `investBattery`（ストック消費+発展更新の単一操作）, `resetProgress`, `effectiveCapacityWh`, `effectiveCoefficient` |
 | HistoryProvider | — | `loadHistory`, `deleteHistoryRecord`, `clearHistory`（全履歴削除＋まちの発展状況リセット）, イベント読み出し |
 
 `EnergyProvider` は `CompanionProvider.effectiveCoefficient` を係数供給元として参照する。
 `HistoryProvider` は `CompanionProvider` にも依存する（`clearHistory` が
 `CompanionProvider.resetProgress`/`EnergyProvider.resetProgress` を呼ぶため）。
+
+> `SettingsProvider.updateCompanionWeatherFxEnabled` と `CompanionProvider.firstSparkleDate`
+> は、それぞれ天気演出・きらめきタイムの完全削除に伴い 2026-08-10 に削除した（4.7節）。
 
 ### 8.1 全履歴クリアとまちの発展状況リセット（2026-08-10）
 
@@ -590,16 +636,17 @@ booster・toy の効果自体（`CompanionState`/`feed_item_definitions.dart`）
 | `companion_logic_test.dart` | 給餌効果・愛着スコア・きげん判定 |
 | `local_storage_test.dart` | シリアライズ・導出容量・旧データ移行 |
 | `energy_provider_test.dart` | 同期・係数・refreshDisplay・履歴削除後の二重加算防止（3.4.1節）・さかのぼり同期の冪等性（3.4.2節） |
-| `companion_provider_test.dart` | feedChosen・実績・進化祝福・きらめきタイム・investBattery のアトミック性（5.2.1節） |
+| `companion_provider_test.dart` | feedChosen・実績・進化祝福・investBattery のアトミック性（5.2.1節） |
 | `history_provider_test.dart` | 履歴削除・全履歴クリアによるまちの発展状況リセット（8.1節） |
 | `health_service_test.dart` | Android 正規化・プラグイン例外の HealthServiceException への変換（9節） |
-| `companion_atmosphere_test.dart` | 天気・季節判定 |
-| `companion_weather_overlay_test.dart` | 天気演出の表示切り替え |
 | `companion_avatar_test.dart` | 全進化段階での `CompanionAvatar` 描画 |
 | `town_stats_test.dart` | `TownStats.buildingCount`/`population` の算出 |
 | `home_and_settings_screen_test.dart` | ホーム/設定画面のナビゲーション（遊び方ボタンの位置、まちアイコン） |
-| `settings_screen_test.dart` | フォーカスを外さない保存時の入力反映・不正値のフォールバック/クランプ（4.10節）・バージョン表示（1節） |
+| `settings_screen_test.dart` | フォーカスを外さない保存時の入力反映・不正値のフォールバック/クランプ（4.11節）・バージョン表示（1節） |
 | `widget_test.dart` | アプリ起動 |
+
+> `companion_atmosphere_test.dart`、`companion_weather_overlay_test.dart` は
+> 対象コードごと 2026-08-10 に削除した（4.7節）。
 
 ---
 
@@ -613,9 +660,11 @@ booster・toy の効果自体（`CompanionState`/`feed_item_definitions.dart`）
 | 満タンストック | 蓄電池が満タンになった回数。給餌に消費 |
 | 同期 | 歩数を取得し差分をエネルギーに反映する操作 |
 | なつき度 | 給餌回数の合計。進化段階を決定する（＝発展度） |
-| 愛着スコア | なつき度×10 + 累積発電量/100 + きらめきタイム×50。2026-08-10以降は内部指標のみ（非表示） |
-| きげん | 最終給餌からの経過で決まる気分（happy / normal / lonely / none）。2026-08-10以降は地球儀の色味への薄いティントのみ（テキスト非表示） |
-| きらめきタイム | 最終進化段階到達後、一定間隔で発生する祝福演出 |
+| 愛着スコア | なつき度×10 + 累積発電量/100。内部指標のみ（非表示） |
+| きげん | 最終給餌からの経過で決まる気分（happy / normal / lonely / none）。地球儀の色味への薄いティントのみ（テキスト非表示） |
 | なでる | 相棒タップの軽い触れ合い演出（電気を消費しない） |
 | 同期カーソル | 今日すでに同期済みの歩数を、画面の履歴とは別に保持する値。履歴削除の影響を受けない（3.4.1節） |
 | さかのぼり基準日 | さかのぼり同期の対象とする最古の日付。初回同期時に一度だけ固定する（3.4.2節） |
+
+> きらめきタイム・天気/季節演出は 2026-08-10 に機能ごと削除したため、用語集から除いた
+> （4.7節参照）。

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'game_constants.dart';
-
 /// 発展度に応じた「夜の地球の灯り」段階。
 /// 暗い地球 → 都市の光帯 → 大陸が輝く → 軌道から見た地球、と育つ。
 /// 最終段階到達後は見た目の段階は固定で、灯りの密度（統計）だけ増え続ける。
@@ -100,12 +98,6 @@ class CompanionStages {
 
   static List<CompanionStage> reachedStages(int level) =>
       stages.where((stage) => level >= stage.minLevel).toList();
-
-  static int sparkleCount(int level) {
-    if (!isAtFinalStage(level)) return 0;
-    final beyond = level - stages.last.minLevel;
-    return 1 + beyond ~/ GameConstants.sparkleMomentInterval;
-  }
 }
 
 /// 発展度から導出する「灯り都市」と「照らされた人口」の目安。
