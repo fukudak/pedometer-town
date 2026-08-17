@@ -26,4 +26,18 @@ void main() {
 
     expect(CompanionStages.nextMilestone(17), isNull);
   });
+
+  test('earthCount は最終段階到達後、一定回数ごとに1個ずつ積み上がる', () {
+    expect(CompanionStages.earthCount(16), 0);
+    expect(CompanionStages.remainingForNextEarth(16), isNull);
+
+    expect(CompanionStages.earthCount(17), 1);
+    expect(CompanionStages.remainingForNextEarth(17), 17);
+
+    expect(CompanionStages.earthCount(33), 1);
+    expect(CompanionStages.remainingForNextEarth(33), 1);
+
+    expect(CompanionStages.earthCount(34), 2);
+    expect(CompanionStages.remainingForNextEarth(34), 17);
+  });
 }
