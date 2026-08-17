@@ -256,6 +256,22 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
           ),
           const SizedBox(height: 16),
           Center(
+            child: Column(
+              children: [
+                Text(
+                  stage.name,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '発展度 $level',
+                  style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.outline),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Center(
             child: Text(
               '累積発電量 ${energyProvider.lifetimeEnergyWh.toStringAsFixed(1)} Wh',
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -297,7 +313,13 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
                     (nextStage.minLevel - stage.minLevel),
               )
             else
-              const _NextMilestoneCard.postRocket(),
+              _EarthStockCard(
+                earthCount: CompanionStages.earthCount(level),
+                remaining: CompanionStages.remainingForNextEarth(level) ?? 0,
+                progress: 1 -
+                    (CompanionStages.remainingForNextEarth(level) ?? 0) /
+                        CompanionStages.stages.last.minLevel,
+              ),
           ],
         ],
       ),
@@ -308,44 +330,15 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
 class _NextMilestoneCard extends StatelessWidget {
   final int remaining;
   final double progress;
-  final bool postRocket;
 
   const _NextMilestoneCard({
     required this.remaining,
     required this.progress,
-  }) : postRocket = false;
-
-  const _NextMilestoneCard.postRocket()
-      : remaining = 1,
-        progress = 0,
-        postRocket = true;
+  });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    if (postRocket) {
-      return Card(
-        color: colorScheme.secondaryContainer.withValues(alpha: 0.45),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '次の投入で',
-                style: TextStyle(fontSize: 13, color: colorScheme.outline),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                '地球の灯りがさらに広がる',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Card(
       color: colorScheme.primaryContainer.withValues(alpha: 0.55),
       child: Padding(
@@ -356,6 +349,58 @@ class _NextMilestoneCard extends StatelessWidget {
             Text(
               'あと $remaining 回投入すると灯りが広がる',
               style: TextStyle(fontSize: 13, color: colorScheme.onPrimaryContainer),
+            ),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: progress.clamp(0.0, 1.0),
+                minHeight: 8,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 最終段階到達後に積み上がる「完成した地球」の数と、次の1個までの進捗。
+class _EarthStockCard extends StatelessWidget {
+  final int earthCount;
+  final int remaining;
+  final double progress;
+
+  const _EarthStockCard({
+    required this.earthCount,
+    required this.remaining,
+    required this.progress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      color: colorScheme.secondaryContainer.withValues(alpha: 0.45),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text('🌍', style: const TextStyle(fontSize: 22)),
+                const SizedBox(width: 8),
+                Text(
+                  '完成した地球 $earthCount 個',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'あと $remaining 回投入すると次の地球が完成する',
+              style: TextStyle(fontSize: 13, color: colorScheme.onSecondaryContainer),
             ),
             const SizedBox(height: 10),
             ClipRRect(

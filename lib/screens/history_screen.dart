@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../domain/models/daily_step_record.dart';
 import '../providers/history_provider.dart';
+import '../widgets/history_chart.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
@@ -61,6 +62,18 @@ class HistoryScreen extends StatelessWidget {
           : ListView(
               padding: const EdgeInsets.all(16.0),
               children: [
+                Text(
+                  '発電量の推移',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+                    child: HistoryChart(records: records),
+                  ),
+                ),
+                const SizedBox(height: 24),
                 Text(
                   '歩数・発電量',
                   style: Theme.of(context).textTheme.titleMedium,

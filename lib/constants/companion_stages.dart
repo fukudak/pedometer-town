@@ -96,6 +96,23 @@ class CompanionStages {
     return level <= last ? 0 : level - last;
   }
 
+  /// 最終段階到達後に積み上がる「完成した地球」の数。
+  /// 最終段階に到達した時点で1個目が完成し、以降は最終段階到達に必要だった
+  /// 投入回数と同じ回数だけ追加投入するたびに1個ずつ増える。
+  static int earthCount(int level) {
+    if (!isAtFinalStage(level)) return 0;
+    final cycle = stages.last.minLevel;
+    return 1 + postRocketGrowth(level) ~/ cycle;
+  }
+
+  /// 次の地球が完成するまでの残り投入回数（最終段階未到達なら null）。
+  static int? remainingForNextEarth(int level) {
+    if (!isAtFinalStage(level)) return null;
+    final cycle = stages.last.minLevel;
+    final progress = postRocketGrowth(level) % cycle;
+    return cycle - progress;
+  }
+
   static List<CompanionStage> reachedStages(int level) =>
       stages.where((stage) => level >= stage.minLevel).toList();
 }
