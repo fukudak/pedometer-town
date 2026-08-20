@@ -225,12 +225,27 @@ class EarthLights {
   static const _maxLights = 1400;
 
   /// ともる光点の数。UI に出している「灯り都市の数」と同じ指標から導く。
-  static int countFor(int level) =>
-      math.min(TownStats.buildingCount(level) * _lightsPerCity, _maxLights);
+  /// 最終段階到達後は地球が1個完成するたびに真っ暗な状態から灯りが
+  /// 広がり直す（[_cycleLevel] 参照）。
+  static int countFor(int level) => math.min(
+        TownStats.buildingCount(_cycleLevel(level)) * _lightsPerCity,
+        _maxLights,
+      );
 
   /// 大気リムの明るさ（0〜1）。発展するほど地球の輪郭がはっきりする。
   static double glowFor(int level) =>
-      (level / CompanionStages.stages.last.minLevel).clamp(0.0, 1.0);
+      (_cycleLevel(level) / CompanionStages.stages.last.minLevel)
+          .clamp(0.0, 1.0);
+
+  /// 最終段階到達前はそのままの発展度。到達後は、完成した地球1個分の
+  /// 投入回数を1周期として発展度を周期内の進み具合に置き換える。
+  /// これにより、地球が1個完成した瞬間に真っ暗に戻り、次の地球へ向けて
+  /// また灯りが広がっていく見た目になる。
+  static int _cycleLevel(int level) {
+    if (!CompanionStages.isAtFinalStage(level)) return level;
+    final cycle = CompanionStages.stages.last.minLevel;
+    return CompanionStages.postRocketGrowth(level) % cycle;
+  }
 }
 
 /// 球面上の街明かり1点。毎フレームの三角関数を避けるため展開して持つ。

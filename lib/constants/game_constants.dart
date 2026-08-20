@@ -1,4 +1,4 @@
-/// 万歩計タウン 数値定数（仕様書 ai-implementation-spec.md §3 準拠）
+/// 万歩計プラネット 数値定数（仕様書 ai-implementation-spec.md §3 準拠）
 class GameConstants {
   GameConstants._();
 

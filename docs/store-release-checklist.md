@@ -6,7 +6,7 @@
 
 ## 完了済み（コード・設定）
 
-- [x] アプリ表示名を「万歩計タウン」に統一（Android `AndroidManifest.xml` / iOS `Info.plist`）
+- [x] アプリ表示名を「万歩計プラネット」に統一（Android `AndroidManifest.xml` / iOS `Info.plist`）
 - [x] `pubspec.yaml` の description を実態に合わせて更新
 - [x] iOS `NSHealthShareUsageDescription`（HealthKit利用目的）を追加 ※未設定だと審査リジェクトされる必須項目だった
 - [x] iOS `ITSAppUsesNonExemptEncryption = false` を追加（暗号化に関する質問をスキップ）

@@ -23,7 +23,7 @@ void main() {
     expect(find.text('遊び方'), findsNothing);
   });
 
-  testWidgets('ホーム画面の「まち」アイコンは地球儀（Icons.public）',
+  testWidgets('ホーム画面の「星」アイコンは地球儀（Icons.public）',
       (WidgetTester tester) async {
     await pumpApp(tester);
 

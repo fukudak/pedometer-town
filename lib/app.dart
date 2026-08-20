@@ -58,7 +58,7 @@ class _PedometerTownAppState extends State<PedometerTownApp> {
         ChangeNotifierProvider.value(value: _historyProvider),
       ],
       child: MaterialApp(
-        title: '万歩計タウン',
+        title: '万歩計プラネット',
         theme: _buildExpressiveTheme(),
         home: const HomeScreen(),
       ),

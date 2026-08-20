@@ -76,10 +76,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('万歩計タウン'),
+        title: const Text('万歩計プラネット'),
         actions: [
           IconButton(
-            tooltip: 'まち',
+            tooltip: '星',
             icon: const Icon(Icons.public),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const CompanionScreen()),
