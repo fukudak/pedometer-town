@@ -265,10 +265,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 16),
           _SettingsSection(
             icon: Icons.location_city,
-            title: 'まちの表示',
+            title: '星の表示',
             children: [
               _LabeledField(
-                label: 'まちの名前',
+                label: '星の名前',
                 unit: '',
                 controller: _companionNameController,
                 focusNode: _companionNameFocus,

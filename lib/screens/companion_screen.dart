@@ -24,11 +24,9 @@ class CompanionScreen extends StatefulWidget {
 class _CompanionScreenState extends State<CompanionScreen> with TickerProviderStateMixin {
   late final AnimationController _idleController;
   late final AnimationController _feedController;
-  late final AnimationController _patController;
   Timer? _feedClearTimer;
   DateTime? _lastHandledFeedAt;
   FeedEvent? _activeFeedEvent;
-  bool _showPatHeart = false;
   bool _screenshotMode = false;
   bool _investing = false;
 
@@ -43,10 +41,6 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
       vsync: this,
       duration: const Duration(milliseconds: 650),
     );
-    _patController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
     WidgetsBinding.instance.addPostFrameCallback((_) => _showCelebrations());
   }
 
@@ -55,7 +49,6 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
     _feedClearTimer?.cancel();
     _idleController.dispose();
     _feedController.dispose();
-    _patController.dispose();
     super.dispose();
   }
 
@@ -157,19 +150,7 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
     );
   }
 
-  Future<void> _pat() async {
-    await HapticFeedback.lightImpact();
-    setState(() => _showPatHeart = true);
-    _patController
-      ..reset()
-      ..forward();
-    Timer(const Duration(milliseconds: 900), () {
-      if (!mounted) return;
-      setState(() => _showPatHeart = false);
-    });
-  }
-
-  /// ストック電池1個を投入してまちを1段階発展させる。
+  /// ストック電池1個を投入して星を1段階発展させる。
   /// ストック消費と発展更新は [CompanionProvider.investBattery] 内で
   /// 呼び出し側から見て単一の操作としてまとめられており、連打しても
   /// ストック数以上には投入できない。
@@ -203,7 +184,7 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
     final stage = CompanionStages.forLevel(level);
     final nextStage = CompanionStages.next(level);
     final companionName = settingsProvider.settings.companionName.trim();
-    final displayName = companionName.isEmpty ? 'わたしのまち' : companionName;
+    final displayName = companionName.isEmpty ? 'わたしの星' : companionName;
     final pendingFeed = companionProvider.pendingFeedEvent;
     if (pendingFeed != null && _lastHandledFeedAt != pendingFeed.createdAt) {
       _lastHandledFeedAt = pendingFeed.createdAt;
@@ -236,7 +217,6 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
             animation: Listenable.merge([
               _idleController,
               _feedController,
-              _patController,
             ]),
             builder: (context, _) {
               return _CompanionStage(
@@ -248,9 +228,6 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
                     ? 1.0
                     : Tween<double>(begin: 0.6, end: 1.0)
                         .transform(Curves.elasticOut.transform(_feedController.value)),
-                showPatHeart: _showPatHeart,
-                patValue: _patController.value,
-                onTap: _pat,
               );
             },
           ),
@@ -424,9 +401,6 @@ class _CompanionStage extends StatelessWidget {
   final int developmentLevel;
   final double idleValue;
   final double feedScale;
-  final bool showPatHeart;
-  final double patValue;
-  final VoidCallback onTap;
 
   const _CompanionStage({
     required this.stage,
@@ -434,9 +408,6 @@ class _CompanionStage extends StatelessWidget {
     required this.developmentLevel,
     required this.idleValue,
     required this.feedScale,
-    required this.showPatHeart,
-    required this.patValue,
-    required this.onTap,
   });
 
   @override
@@ -475,29 +446,10 @@ class _CompanionStage extends StatelessWidget {
                   size: 250,
                   idleValue: idleValue,
                   developmentLevel: developmentLevel,
-                  onTap: onTap,
                   autoSpin: true,
                 ),
               ),
             ),
-            if (showPatHeart)
-              Align(
-                alignment: Alignment.center,
-                child: Transform.translate(
-                  offset: Offset(0, -50 - 28 * patValue),
-                  child: Opacity(
-                    opacity: 1.0 - patValue,
-                    child: Transform.scale(
-                      scale: 0.8 + 0.4 * (1 - patValue),
-                      child: const Icon(
-                        Icons.favorite,
-                        color: Color(0xFFFF8A80),
-                        size: 34,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),

@@ -15,7 +15,7 @@ class HistoryScreen extends StatelessWidget {
         title: const Text('履歴をクリア'),
         content: const Text(
           '過去の歩数・発電量の記録をすべて削除します。'
-          'まちの発展度・蓄電池・累積発電量も初期状態に戻ります。元に戻せません。',
+          '星の発展度・蓄電池・累積発電量も初期状態に戻ります。元に戻せません。',
         ),
         actions: [
           TextButton(
@@ -44,13 +44,6 @@ class HistoryScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('履歴'),
-        actions: [
-          if (!isEmpty)
-            TextButton(
-              onPressed: () => _confirmClearAll(context),
-              child: const Text('クリア'),
-            ),
-        ],
       ),
       body: isEmpty
           ? Center(

@@ -27,7 +27,7 @@ class HistoryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 全ての日次記録を削除し、まちの発展状況（発展度・蓄電池・累積発電量・
+  /// 全ての日次記録を削除し、星の発展状況（発展度・蓄電池・累積発電量・
   /// 満タンストック）も初期状態に戻す。同期差分の起点には触れないため、
   /// 再同期しても今日すでに同期済みの歩数が再加算されることはない。
   Future<void> clearHistory() async {

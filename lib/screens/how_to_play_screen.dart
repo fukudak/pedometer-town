@@ -21,7 +21,7 @@ class HowToPlayScreen extends StatelessWidget {
             children: const [
               _Step(number: 1, text: '歩くと歩数が自動で同期され、蓄電池にエネルギーが溜まります。'),
               _Step(number: 2, text: '蓄電池が満タンになると「ストック」に電池が1個追加されます。'),
-              _Step(number: 3, text: 'まち画面でストックした電池を「投入」すると、地球に灯りが広がります。'),
+              _Step(number: 3, text: '星画面でストックした電池を「投入」すると、地球に灯りが広がります。'),
               _Step(number: 4, text: '投入するたびに発展度が上がり、夜の地球の街明かりが増えていきます。'),
             ],
           ),
@@ -49,9 +49,22 @@ class HowToPlayScreen extends StatelessWidget {
             icon: Icons.battery_charging_full,
             title: '電力の投入',
             children: const [
-              Text('ストックした電池は、まち画面の「投入」ボタンで1個ずつ使います。'),
+              Text('ストックした電池は、星画面の「投入」ボタンで1個ずつ使います。'),
               SizedBox(height: 8),
               Text('1回の投入で発展度が +1 され、夜の地球の灯りが進みます。種類の選択はありません。'),
+            ],
+          ),
+          _SectionCard(
+            icon: Icons.public,
+            title: '発展度と地球の成長',
+            children: const [
+              Text('星画面には現在のステージ名と「発展度」の数値が表示されます。'),
+              SizedBox(height: 8),
+              Text('発展度が上がるほど地球にともる街明かりが増え、最終ステージに到達すると地球全体が輝きます。'),
+              SizedBox(height: 8),
+              Text('最終ステージ到達後もさらに投入を続けると、一定回数ごとに「完成した地球」が1個ずつ積み上がっていきます。'),
+              SizedBox(height: 8),
+              Text('地球が1個完成するたびに、地球の灯りは一度真っ暗にリセットされ、次の地球へ向けてまた灯りが広がっていきます。'),
             ],
           ),
           _SectionCard(
@@ -59,17 +72,17 @@ class HowToPlayScreen extends StatelessWidget {
             title: '画面の見方',
             children: const [
               _Bullet(text: 'ホーム — 蓄電池の状態・今日の歩数・発電量・同期'),
-              _Bullet(text: 'まち — 夜の地球の灯り・電池の投入'),
-              _Bullet(text: '履歴 — 日次の歩数・発電量'),
-              _Bullet(text: '設定 — 体重・速度・発電係数・まちの名前'),
+              _Bullet(text: '星 — 夜の地球の灯り・発展度・電池の投入'),
+              _Bullet(text: '履歴 — 日次の歩数・発電量の一覧とグラフ'),
+              _Bullet(text: '設定 — 体重・速度・発電係数・星の名前'),
             ],
           ),
           _SectionCard(
             icon: Icons.lightbulb_outline,
             title: 'ヒント',
             children: const [
-              _Bullet(text: '電池が溜まったらまち画面で「投入」すると地球に灯りが広がります。'),
-              _Bullet(text: '地球を左右にドラッグすると回せます。タップでハートが出ます。'),
+              _Bullet(text: '電池が溜まったら星画面で「投入」すると地球に灯りが広がります。'),
+              _Bullet(text: '地球を左右にドラッグすると回せます。'),
               _Bullet(text: 'アプリを開くと自動で歩数が同期されます。'),
               _Bullet(text: 'データはすべて端末内に保存され、外部へ送信されません。'),
             ],

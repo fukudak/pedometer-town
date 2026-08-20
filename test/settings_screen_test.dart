@@ -18,7 +18,7 @@ void main() {
         .setMockMethodCallHandler(packageInfoChannel, (call) async {
       if (call.method == 'getAll') {
         return <String, dynamic>{
-          'appName': '万歩計タウン',
+          'appName': '万歩計プラネット',
           'packageName': 'com.pedometertown.pedometer_town',
           'version': '1.0.0',
           'buildNumber': '1',
@@ -132,12 +132,12 @@ void main() {
     expect(storage.loadPlayerSettings().weightKg, GameConstants.maxWeightKg);
   });
 
-  testWidgets('まちの名前もフォーカスを外さず保存すれば前後の空白を除去して保存される',
+  testWidgets('星の名前もフォーカスを外さず保存すれば前後の空白を除去して保存される',
       (WidgetTester tester) async {
     final storage = await pumpSettingsScreen(tester);
 
     final nameFieldFinder = find.ancestor(
-      of: find.text('まちの名前'),
+      of: find.text('星の名前'),
       matching: find.byType(Row),
     );
     final textFieldFinder =
@@ -148,10 +148,10 @@ void main() {
       200,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.enterText(textFieldFinder, '  ほしのまち  ');
+    await tester.enterText(textFieldFinder, '  ほしのほし  ');
     await tapSave(tester);
 
-    expect(storage.loadPlayerSettings().companionName, 'ほしのまち');
+    expect(storage.loadPlayerSettings().companionName, 'ほしのほし');
   });
 
   testWidgets('設定画面のバージョン表示は配布バージョン（pubspec.yaml）から取得される',

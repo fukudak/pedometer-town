@@ -1,4 +1,4 @@
-# 万歩計タウン 実装仕様書
+# 万歩計プラネット 実装仕様書
 
 **バージョン**: 6.0
 **日付**: 2026-08-10
@@ -16,7 +16,7 @@
 > この変更に単独の archive 計画書は作成していない（コアループ自体は不変のため）。
 >
 > **2026-08-10 の変更（前半）**: CompanionScreen の表示を大幅に簡素化し（発展度の数値・
-> きげんのテキスト・きらめき回数・まちスコアの表示を削除、地球儀の見た目自体は変更なし）、
+> きげんのテキスト・きらめき回数・星スコアの表示を削除、地球儀の見た目自体は変更なし）、
 > 累積発電量の表示を追加した。あわせて以下の信頼性まわりの修正を行った:
 > 履歴削除後の二重加算防止、さかのぼり同期の冪等化、HealthKit例外処理の統一、
 > 設定画面の未確定入力の保存、電池投入処理のアトミック化、表示バージョンの一元化
@@ -30,7 +30,7 @@
 
 ## 0. 概要
 
-完全オフラインの Flutter アプリ。歩数から移動エネルギー(Wh)を計算し蓄電池に蓄積する。蓄電池が満タンになるとストックされ、まち画面で消費して電力を投入し、夜の地球に街明かりが広がっていく。
+完全オフラインの Flutter アプリ。歩数から移動エネルギー(Wh)を計算し蓄電池に蓄積する。蓄電池が満タンになるとストックされ、星画面で消費して電力を投入し、夜の地球に街明かりが広がっていく。
 
 ### 画面構成
 
@@ -38,10 +38,10 @@
 |------|------|
 | HomeScreen | 蓄電池・今日の歩数/発電量・自動同期 |
 | CompanionScreen | 地球儀（発展度に応じた街明かり・自転）・累積発電量・満タン蓄電池の投入 |
-| HistoryScreen | 日次の歩数・発電量。全履歴クリアはまちの発展状況も初期化する |
-| SettingsScreen | 体重・速度・発電係数・GPS 速度計測・まちの名前・遊び方・バージョン表示 |
+| HistoryScreen | 日次の歩数・発電量。全履歴クリアは星の発展状況も初期化する |
+| SettingsScreen | 体重・速度・発電係数・GPS 速度計測・星の名前・遊び方・バージョン表示 |
 
-CompanionScreen は 2026-08-10 に表示を簡素化した。きげん・発展度の数値・まちスコア
+CompanionScreen は 2026-08-10 に表示を簡素化した。きげん・発展度の数値・星スコア
 （愛着スコア）は画面に表示されない（内部ロジックとしては残っている。4.5〜4.6節参照）。
 きらめきタイム・天気/季節演出は表示ではなく機能自体を削除したため、内部ロジックも
 存在しない（4.7章参照）。
@@ -380,7 +380,7 @@ bondScore = level × 10 + floor(lifetimeEnergyWh / 100)
 
 ### 4.7 きらめきタイム・天気/季節演出の完全削除（2026-08-10）
 
-きげん・発展度数値・まちスコアの「表示だけ削除」（4.5〜4.6節、0章）とは異なり、
+きげん・発展度数値・星スコアの「表示だけ削除」（4.5〜4.6節、0章）とは異なり、
 きらめきタイムと天気/季節演出は **実装ごと削除** した。理由はユーザー指示による。
 
 **きらめきタイム関連で削除したもの**:
@@ -429,7 +429,7 @@ bondScore = level × 10 + floor(lifetimeEnergyWh / 100)
 CompanionScreen の表示は 2026-08-10 に簡素化された。現在表示しているのは
 地球儀（`_CompanionStage`/`CompanionAvatar`、見た目は変更なし）・累積発電量
 （`EnergyProvider.lifetimeEnergyWh`）・ストック表示と投入ボタン・次の発展段階までの
-残り回数カードのみ。まちの名前・発展度の数値・きげんラベル・まちスコアの表示は削除した
+残り回数カードのみ。星の名前・発展度の数値・きげんラベル・星スコアの表示は削除した
 （4.5〜4.6節のとおり内部ロジックとしては残っている）。きらめきタイム・天気/季節演出は
 4.7節のとおり実装ごと削除した。
 
@@ -465,7 +465,7 @@ CompanionScreen は元々、時間帯（morning/day/evening/night）と天気・
 
 ### 4.11 設定画面: フォーカスを外さない保存の反映（2026-08-10）
 
-`SettingsScreen._save()` は以前、体重・速度・係数・まちの名前の入力を
+`SettingsScreen._save()` は以前、体重・速度・係数・星の名前の入力を
 `TextEditingController` の値ではなく、フォーカスアウト時（`FocusNode` リスナー）または
 `onSubmitted`（キーボードの「完了」操作）でのみ更新される state 変数から読んでいた。
 そのため、入力欄にフォーカスが残ったまま（フォーカスを外さず・「完了」を押さず）
@@ -502,7 +502,7 @@ booster・toy の効果自体（`CompanionState`/`feed_item_definitions.dart`）
 ### 5.2 投入フロー（現行 UI）
 
 1. 歩行でエネルギー蓄積 → 満タン到達で `pendingBatteries` 増加
-2. まち画面で「投入」ボタン → `CompanionProvider.investBattery()` を呼ぶ
+2. 星画面で「投入」ボタン → `CompanionProvider.investBattery()` を呼ぶ
 3. `investBattery()` 内でストック消費（`EnergyProvider.consumeStockedBatteries(1)`）と
    発展更新（`feedChosen(FeedItemType.meal)`）を呼び出し側から見て単一の操作として実行する
 4. 容量再計算・進化段階祝福・実績チェック
@@ -575,7 +575,7 @@ booster・toy の効果自体（`CompanionState`/`feed_item_definitions.dart`）
 | SettingsProvider | PlayerSettings | `updateWeight`, `updateSpeed`, `updateCoefficient`, `updateCompanionName` |
 | EnergyProvider | BatteryState, DailyStepRecord, pendingBatteries, lifetimeEnergyWh | `syncStepsFromHealth`, `consumeStockedBatteries`, `creditStockedBatteries`（ロールバック用）, `resetProgress`, `refreshDisplay` |
 | CompanionProvider | CompanionState, mood, bondScore, 実績・進化キュー, FeedEvent | `feedChosen`, `investBattery`（ストック消費+発展更新の単一操作）, `resetProgress`, `effectiveCapacityWh`, `effectiveCoefficient` |
-| HistoryProvider | — | `loadHistory`, `deleteHistoryRecord`, `clearHistory`（全履歴削除＋まちの発展状況リセット）, イベント読み出し |
+| HistoryProvider | — | `loadHistory`, `deleteHistoryRecord`, `clearHistory`（全履歴削除＋星の発展状況リセット）, イベント読み出し |
 
 `EnergyProvider` は `CompanionProvider.effectiveCoefficient` を係数供給元として参照する。
 `HistoryProvider` は `CompanionProvider` にも依存する（`clearHistory` が
@@ -584,9 +584,9 @@ booster・toy の効果自体（`CompanionState`/`feed_item_definitions.dart`）
 > `SettingsProvider.updateCompanionWeatherFxEnabled` と `CompanionProvider.firstSparkleDate`
 > は、それぞれ天気演出・きらめきタイムの完全削除に伴い 2026-08-10 に削除した（4.7節）。
 
-### 8.1 全履歴クリアとまちの発展状況リセット（2026-08-10）
+### 8.1 全履歴クリアと星の発展状況リセット（2026-08-10）
 
-`HistoryProvider.clearHistory()` は全日次記録の削除に加えて、まちの発展状況
+`HistoryProvider.clearHistory()` は全日次記録の削除に加えて、星の発展状況
 （発展度・蓄電池の蓄積量/容量・累積発電量・満タンストック数）も初期状態に戻す。
 個別の1日削除（`deleteHistoryRecord`）はこのリセットを行わない。
 
@@ -637,11 +637,11 @@ booster・toy の効果自体（`CompanionState`/`feed_item_definitions.dart`）
 | `local_storage_test.dart` | シリアライズ・導出容量・旧データ移行 |
 | `energy_provider_test.dart` | 同期・係数・refreshDisplay・履歴削除後の二重加算防止（3.4.1節）・さかのぼり同期の冪等性（3.4.2節） |
 | `companion_provider_test.dart` | feedChosen・実績・進化祝福・investBattery のアトミック性（5.2.1節） |
-| `history_provider_test.dart` | 履歴削除・全履歴クリアによるまちの発展状況リセット（8.1節） |
+| `history_provider_test.dart` | 履歴削除・全履歴クリアによる星の発展状況リセット（8.1節） |
 | `health_service_test.dart` | Android 正規化・プラグイン例外の HealthServiceException への変換（9節） |
 | `companion_avatar_test.dart` | 全進化段階での `CompanionAvatar` 描画 |
 | `town_stats_test.dart` | `TownStats.buildingCount`/`population` の算出 |
-| `home_and_settings_screen_test.dart` | ホーム/設定画面のナビゲーション（遊び方ボタンの位置、まちアイコン） |
+| `home_and_settings_screen_test.dart` | ホーム/設定画面のナビゲーション（遊び方ボタンの位置、星アイコン） |
 | `settings_screen_test.dart` | フォーカスを外さない保存時の入力反映・不正値のフォールバック/クランプ（4.11節）・バージョン表示（1節） |
 | `widget_test.dart` | アプリ起動 |
 
