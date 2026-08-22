@@ -1,4 +1,4 @@
-# 万歩計プラネット 実装仕様書
+# 万歩計タウン 実装仕様書
 
 **バージョン**: 6.0
 **日付**: 2026-08-10
@@ -419,11 +419,7 @@ bondScore = level × 10 + floor(lifetimeEnergyWh / 100)
 `test/companion_weather_overlay_test.dart`、および `companion_provider_test.dart`/
 `companion_logic_test.dart`/`local_storage_test.dart` 内のきらめき・天気関連テスト。
 
-### 4.8 相棒画面の情緒・触れ合い（見た目）
-
-| 機能 | 内容 | 永続化 |
-|------|------|--------|
-| スクリーンショットモード | セッション限り。ストック・投入カードを隠し、地球儀＋累積発電量のみ表示 | なし |
+### 4.8 相棒画面の表示
 
 CompanionScreen の表示は 2026-08-10 に簡素化された。現在表示しているのは
 地球儀（`_CompanionStage`/`CompanionAvatar`、見た目は変更なし）・累積発電量

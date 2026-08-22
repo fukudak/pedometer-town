@@ -18,7 +18,7 @@ void main() {
         .setMockMethodCallHandler(packageInfoChannel, (call) async {
       if (call.method == 'getAll') {
         return <String, dynamic>{
-          'appName': '万歩計プラネット',
+          'appName': '万歩計タウン',
           'packageName': 'com.pedometertown.pedometer_town',
           'version': '1.0.0',
           'buildNumber': '1',

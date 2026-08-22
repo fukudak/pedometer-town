@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// 発展度に応じた「夜の地球の灯り」段階。
-/// 暗い地球 → 都市の光帯 → 大陸が輝く → 軌道から見た地球、と育つ。
+/// 発展度に応じた「夜の星の灯り」段階。
+/// 暗い星 → 都市の光帯 → 大陸が輝く → 軌道から見た星、と育つ。
 /// 最終段階到達後は見た目の段階は固定で、灯りの密度（統計）だけ増え続ける。
 class CompanionStage {
   final String id;
@@ -21,14 +21,14 @@ class CompanionStages {
   CompanionStages._();
 
   static const List<CompanionStage> stages = [
-    CompanionStage(id: 'egg', name: '暗い地球', minLevel: 0),
+    CompanionStage(id: 'egg', name: '暗い星', minLevel: 0),
     CompanionStage(id: 'crack', name: '最初の灯り', icon: Icons.nightlight, minLevel: 1),
     CompanionStage(id: 'hatch', name: '村の灯り', icon: Icons.lightbulb, minLevel: 2),
     CompanionStage(id: 'kid', name: '街の光帯', icon: Icons.location_city, minLevel: 4),
     CompanionStage(id: 'charged', name: '大都市が輝く', icon: Icons.apartment, minLevel: 7),
     CompanionStage(id: 'reliable', name: '大陸の光網', icon: Icons.public, minLevel: 10),
-    CompanionStage(id: 'radiant', name: '夜の地球が浮かぶ', icon: Icons.travel_explore, minLevel: 13),
-    CompanionStage(id: 'star', name: '軌道から見た地球', icon: Icons.satellite_alt, minLevel: 17),
+    CompanionStage(id: 'radiant', name: '夜の星が浮かぶ', icon: Icons.travel_explore, minLevel: 13),
+    CompanionStage(id: 'star', name: '軌道から見た星', icon: Icons.satellite_alt, minLevel: 17),
   ];
 
   static CompanionStage forLevel(int level) {
@@ -80,11 +80,11 @@ class CompanionStages {
       case 'reliable':
         return '大陸を横断する光の網が見える';
       case 'radiant':
-        return '夜の地球のかたちがはっきり浮かぶ';
+        return '夜の星のかたちがはっきり浮かぶ';
       case 'star':
-        return '軌道から見た夜の地球になる';
+        return '軌道から見た夜の星になる';
       default:
-        return '地球の灯りが広がる';
+        return '星の灯りが広がる';
     }
   }
 
