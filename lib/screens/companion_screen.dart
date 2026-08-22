@@ -27,7 +27,6 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
   Timer? _feedClearTimer;
   DateTime? _lastHandledFeedAt;
   FeedEvent? _activeFeedEvent;
-  bool _screenshotMode = false;
   bool _investing = false;
 
   @override
@@ -62,8 +61,8 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
       await _showCelebrationDialog(
         stage: stage,
         title: '灯りが広がった',
-        heading: '地球が少し明るくなった',
-        description: '歩いて集めたエネルギーが、夜の地球に灯りをともした。',
+        heading: '星が少し明るくなった',
+        description: '歩いて集めたエネルギーが、夜の星に灯りをともした。',
         buttonLabel: 'もっと歩く',
       );
     }
@@ -198,17 +197,6 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
     return Scaffold(
       appBar: AppBar(
         title: Text(displayName),
-        actions: [
-          IconButton(
-            tooltip: 'スクリーンショットモード',
-            onPressed: () {
-              setState(() => _screenshotMode = !_screenshotMode);
-            },
-            icon: Icon(
-              _screenshotMode ? Icons.visibility_off : Icons.photo_camera,
-            ),
-          ),
-        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
@@ -255,49 +243,47 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
             ),
           ),
           const SizedBox(height: 16),
-          if (!_screenshotMode) ...[
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    BatteryStockDisplay(count: pendingBatteries),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'ストック: $pendingBatteries 個',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  BatteryStockDisplay(count: pendingBatteries),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'ストック: $pendingBatteries 個',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
-                    FilledButton(
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(64, 40),
-                      ),
-                      onPressed: pendingBatteries == 0 || _investing
-                          ? null
-                          : _investBattery,
-                      child: const Text('投入'),
+                  ),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(64, 40),
                     ),
-                  ],
-                ),
+                    onPressed: pendingBatteries == 0 || _investing
+                        ? null
+                        : _investBattery,
+                    child: const Text('投入'),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            if (nextStage != null)
-              _NextMilestoneCard(
-                remaining: nextStage.minLevel - level,
-                progress: (level - stage.minLevel) /
-                    (nextStage.minLevel - stage.minLevel),
-              )
-            else
-              _EarthStockCard(
-                earthCount: CompanionStages.earthCount(level),
-                remaining: CompanionStages.remainingForNextEarth(level) ?? 0,
-                progress: 1 -
-                    (CompanionStages.remainingForNextEarth(level) ?? 0) /
-                        CompanionStages.stages.last.minLevel,
-              ),
-          ],
+          ),
+          const SizedBox(height: 16),
+          if (nextStage != null)
+            _NextMilestoneCard(
+              remaining: nextStage.minLevel - level,
+              progress: (level - stage.minLevel) /
+                  (nextStage.minLevel - stage.minLevel),
+            )
+          else
+            _EarthStockCard(
+              earthCount: CompanionStages.earthCount(level),
+              remaining: CompanionStages.remainingForNextEarth(level) ?? 0,
+              progress: 1 -
+                  (CompanionStages.remainingForNextEarth(level) ?? 0) /
+                      CompanionStages.stages.last.minLevel,
+            ),
         ],
       ),
     );
@@ -369,14 +355,14 @@ class _EarthStockCard extends StatelessWidget {
                 Text('🌍', style: const TextStyle(fontSize: 22)),
                 const SizedBox(width: 8),
                 Text(
-                  '完成した地球 $earthCount 個',
+                  '完成した星 $earthCount 個',
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                 ),
               ],
             ),
             const SizedBox(height: 10),
             Text(
-              'あと $remaining 回投入すると次の地球が完成する',
+              'あと $remaining 回投入すると次の星が完成する',
               style: TextStyle(fontSize: 13, color: colorScheme.onSecondaryContainer),
             ),
             const SizedBox(height: 10),

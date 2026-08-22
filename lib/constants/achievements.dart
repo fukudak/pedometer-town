@@ -46,7 +46,7 @@ class Achievements {
     ),
     Achievement(
       id: 'ten_feeds',
-      title: '夜の地球が輝く',
+      title: '夜の星が輝く',
       description: '合計10回投入した',
       icon: Icons.public,
       isUnlocked: (companion) => companion.level >= 10,

@@ -54,24 +54,24 @@ void main() {
 
     expect(find.text('発展度 16'), findsOneWidget);
     expect(find.textContaining('あと 1 回投入すると灯りが広がる'), findsOneWidget);
-    expect(find.textContaining('完成した地球'), findsNothing);
+    expect(find.textContaining('完成した星'), findsNothing);
   });
 
-  testWidgets('最終段階到達（発展度17）で地球ストックカードに切り替わる', (WidgetTester tester) async {
+  testWidgets('最終段階到達（発展度17）で星ストックカードに切り替わる', (WidgetTester tester) async {
     await pumpAtLevel(tester, 17);
 
     expect(find.text('発展度 17'), findsOneWidget);
-    expect(find.text('軌道から見た地球'), findsOneWidget);
-    expect(find.textContaining('完成した地球 1 個'), findsOneWidget);
-    expect(find.textContaining('あと 17 回投入すると次の地球が完成する'), findsOneWidget);
+    expect(find.text('軌道から見た星'), findsOneWidget);
+    expect(find.textContaining('完成した星 1 個'), findsOneWidget);
+    expect(find.textContaining('あと 17 回投入すると次の星が完成する'), findsOneWidget);
   });
 
-  testWidgets('最終段階後さらに投入を重ねると地球の個数が増える（発展度34）',
+  testWidgets('最終段階後さらに投入を重ねると星の個数が増える（発展度34）',
       (WidgetTester tester) async {
     await pumpAtLevel(tester, 34);
 
     expect(find.text('発展度 34'), findsOneWidget);
-    expect(find.textContaining('完成した地球 2 個'), findsOneWidget);
-    expect(find.textContaining('あと 17 回投入すると次の地球が完成する'), findsOneWidget);
+    expect(find.textContaining('完成した星 2 個'), findsOneWidget);
+    expect(find.textContaining('あと 17 回投入すると次の星が完成する'), findsOneWidget);
   });
 }
