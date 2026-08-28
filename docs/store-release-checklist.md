@@ -1,6 +1,6 @@
 # ストア公開チェックリスト
 
-最終更新: 2026-07-31
+最終更新: 2026-08-28
 
 具体的な操作手順は [release-procedures.md](release-procedures.md) を参照。
 
@@ -29,9 +29,9 @@
 ## 必要なあなたの作業（私には実行不可）
 
 ### 両ストア共通
-- [ ] GitHub Pages を有効化し、`docs/privacy.html` を公開
+- [x] GitHub Pages を有効化し、`docs/privacy.html` を公開
   - GitHubリポジトリ → Settings → Pages → Source を `Deploy from a branch` にし、Branch を `master` / フォルダを `/docs` に設定
-  - 公開後のURLを `docs/store-listing.md` 内のプライバシーポリシーURLに反映
+  - 公開後のURLは `docs/store-listing.md` 内のプライバシーポリシーURLと一致済み（https://fukudak.github.io/pedometer-town/privacy.html）
 - [ ] `docs/store-listing.md` の説明文・キーワードを確認・推敲
 - [ ] スクリーンショット撮影（ホーム画面・相棒画面・履歴画面・設定画面・遊び方など）
 
