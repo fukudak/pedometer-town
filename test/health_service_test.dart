@@ -15,6 +15,23 @@ class _ThrowingHealth extends Health {
   }
 }
 
+/// getTotalStepsInInterval が正常値を返す状況を再現するフェイク
+/// （Android の Health Connect 副系動作の検証用）。
+class _FakeHealth extends Health {
+  final int steps;
+
+  _FakeHealth(this.steps);
+
+  @override
+  Future<int?> getTotalStepsInInterval(
+    DateTime startTime,
+    DateTime endTime, {
+    bool includeManualEntry = true,
+  }) async {
+    return steps;
+  }
+}
+
 /// EnergyProvider.syncStepsFromHealth の加算規約を再現するヘルパー。
 ///
 /// - 日付が変わったら今日の記録は空（lastSyncedSteps = 0）から始まる
@@ -115,6 +132,14 @@ void main() {
       final result = await service.getStepsForDate(DateTime(2026, 6, 1));
 
       expect(result, isNull);
+    });
+
+    test('さかのぼり取得は Android/iOS を区別せず health プラグインの値をそのまま返す', () async {
+      final service = HealthService(health: _FakeHealth(4321));
+
+      final result = await service.getStepsForDate(DateTime(2026, 6, 1));
+
+      expect(result, 4321);
     });
   });
 
