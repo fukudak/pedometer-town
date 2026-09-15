@@ -67,6 +67,22 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
       );
     }
 
+    final starCompletions = companionProvider.pendingStarCompletions;
+    companionProvider.clearPendingStarCompletions();
+    for (final starCount in starCompletions) {
+      if (!mounted) return;
+      await HapticFeedback.heavyImpact();
+      if (!mounted) return;
+      await _showCelebrationDialog(
+        achievementIcon: Icons.auto_awesome,
+        title: '星が完成した！',
+        heading: '完成した星 $starCount 個',
+        description: '歩いて集めたエネルギーが、ひとつの星を灯し切った。\nまた新しい星が生まれ、灯りが広がっていく。',
+        buttonLabel: 'つづける',
+        celebratory: true,
+      );
+    }
+
     final pending = companionProvider.pendingCelebrations;
     companionProvider.clearPendingCelebrations();
     for (final achievement in pending) {
@@ -81,7 +97,8 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
     }
   }
 
-  /// 進化段階・実績どちらの祝福ダイアログにも使う共通のレイアウト。
+  /// 進化段階・実績・星の完成、どの祝福ダイアログにも使う共通のレイアウト。
+  /// [celebratory] が true のときは星の完成専用の演出（紙吹雪＋強調表示）を出す。
   Future<void> _showCelebrationDialog({
     CompanionStage? stage,
     IconData? achievementIcon,
@@ -89,33 +106,58 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
     required String heading,
     required String description,
     required String buttonLabel,
+    bool celebratory = false,
   }) {
+    final icon = stage != null
+        ? SizedBox(
+            width: 72,
+            height: 72,
+            child: CompanionAvatar(
+              stage: stage,
+              mood: CompanionMood.happy,
+              size: 72,
+              interactive: false,
+              autoSpin: false,
+            ),
+          )
+        : Icon(
+            achievementIcon ?? Icons.emoji_events,
+            size: celebratory ? 48 : 40,
+            color: Colors.amber,
+          );
+
     return showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        icon: stage != null
+        icon: celebratory
             ? SizedBox(
-                width: 72,
-                height: 72,
-                child: CompanionAvatar(
-                  stage: stage,
-                  mood: CompanionMood.happy,
-                  size: 72,
-                  interactive: false,
-                  autoSpin: false,
+                width: double.infinity,
+                height: 96,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const Positioned.fill(child: _ConfettiBurst()),
+                    icon,
+                  ],
                 ),
               )
-            : Icon(achievementIcon ?? Icons.emoji_events, size: 40, color: Colors.amber),
-        title: Text(title),
+            : icon,
+        title: Text(
+          title,
+          style: celebratory
+              ? const TextStyle(color: Color(0xFFFFA000), fontWeight: FontWeight.w800)
+              : null,
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               heading,
+              textAlign: TextAlign.center,
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 4),
-            Text(description),
+            Text(description, textAlign: TextAlign.center),
           ],
         ),
         actions: [
@@ -441,6 +483,125 @@ class _CompanionStage extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 星の完成を祝う紙吹雪。短時間だけ弾け飛んで消える。
+class _ConfettiBurst extends StatefulWidget {
+  const _ConfettiBurst();
+
+  @override
+  State<_ConfettiBurst> createState() => _ConfettiBurstState();
+}
+
+class _ConfettiBurstState extends State<_ConfettiBurst>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final List<_ConfettiParticle> _particles;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..forward();
+    final rnd = math.Random();
+    _particles = List.generate(28, (_) => _ConfettiParticle.random(rnd));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) => CustomPaint(
+          size: Size.infinite,
+          painter: _ConfettiPainter(particles: _particles, progress: _controller.value),
+        ),
+      ),
+    );
+  }
+}
+
+class _ConfettiParticle {
+  final double startX;
+  final double speed;
+  final double phase;
+  final double size;
+  final Color color;
+  final double spin;
+
+  const _ConfettiParticle({
+    required this.startX,
+    required this.speed,
+    required this.phase,
+    required this.size,
+    required this.color,
+    required this.spin,
+  });
+
+  factory _ConfettiParticle.random(math.Random rnd) {
+    const colors = [
+      Color(0xFFFFD54F),
+      Color(0xFFFF8A65),
+      Color(0xFF4FC3F7),
+      Color(0xFFAED581),
+      Color(0xFFBA68C8),
+    ];
+    return _ConfettiParticle(
+      startX: rnd.nextDouble(),
+      speed: 0.6 + rnd.nextDouble() * 0.8,
+      phase: rnd.nextDouble() * math.pi * 2,
+      size: 4 + rnd.nextDouble() * 5,
+      color: colors[rnd.nextInt(colors.length)],
+      spin: (rnd.nextBool() ? 1 : -1) * (2 + rnd.nextDouble() * 4),
+    );
+  }
+}
+
+class _ConfettiPainter extends CustomPainter {
+  final List<_ConfettiParticle> particles;
+  final double progress;
+
+  _ConfettiPainter({required this.particles, required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint();
+    for (final particle in particles) {
+      final fallY = progress * progress * size.height * 1.6 * particle.speed;
+      final y = -12 + fallY;
+      if (y > size.height) continue;
+      final driftX =
+          math.sin(particle.phase + progress * 6) * size.width * 0.08;
+      final x = particle.startX * size.width + driftX;
+      final alpha = (1 - progress).clamp(0.0, 1.0);
+
+      paint.color = particle.color.withValues(alpha: alpha);
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(progress * particle.spin);
+      canvas.drawRect(
+        Rect.fromCenter(
+          center: Offset.zero,
+          width: particle.size,
+          height: particle.size * 0.6,
+        ),
+        paint,
+      );
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConfettiPainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }
 
 class _StarfieldPainter extends CustomPainter {

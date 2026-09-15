@@ -45,8 +45,14 @@ class _DemoStagesPageState extends State<DemoStagesPage>
   /// ストーリー段階インデックス（0..stages.length-1）
   int _index = 0;
 
-  /// ロケット到達後の発展度（17〜）。growth モードで増加。
-  int _growthLevel = 17;
+  /// 最終段階の発展度。ここから growth モードが始まる。
+  int get _finalLevel => CompanionStages.stages.last.minLevel;
+
+  /// growth モードを終える発展度（デモ用に最終段階から15回分だけ進める）。
+  int get _growthEndLevel => _finalLevel + 15;
+
+  /// ロケット到達後の発展度。growth モードで増加。
+  late int _growthLevel = _finalLevel;
 
   bool _autoPlaying = true;
   bool _inGrowth = false;
@@ -55,7 +61,6 @@ class _DemoStagesPageState extends State<DemoStagesPage>
   static const _dwell = Duration(milliseconds: 2000);
   static const _growthDwell = Duration(milliseconds: 1100);
   static const _launchDuration = Duration(milliseconds: 2800);
-  static const _growthEndLevel = 32;
 
   List<CompanionStage> get _stages => CompanionStages.stages;
 
@@ -125,7 +130,7 @@ class _DemoStagesPageState extends State<DemoStagesPage>
     if (!mounted) return;
     setState(() {
       _inGrowth = true;
-      _growthLevel = 17;
+      _growthLevel = _finalLevel;
       _launch.value = 1;
     });
     _scheduleAdvance();
@@ -139,7 +144,7 @@ class _DemoStagesPageState extends State<DemoStagesPage>
         _autoPlaying = false;
         _inGrowth = false;
         _finishedGrowth = false;
-        _growthLevel = 17;
+        _growthLevel = _finalLevel;
       });
       _launch.stop();
       _launch.value = 0;
@@ -210,7 +215,7 @@ class _DemoStagesPageState extends State<DemoStagesPage>
       _inGrowth = false;
       _autoPlaying = true;
       _index = 0;
-      _growthLevel = 17;
+      _growthLevel = _finalLevel;
     });
     unawaited(_jumpToPage(0).then((_) {
       if (mounted) _scheduleAdvance();
@@ -224,7 +229,7 @@ class _DemoStagesPageState extends State<DemoStagesPage>
       _inGrowth = true;
       _finishedGrowth = false;
       _index = _stages.length - 1;
-      _growthLevel = 17;
+      _growthLevel = _finalLevel;
       _launch.value = 1;
     });
   }
@@ -235,7 +240,7 @@ class _DemoStagesPageState extends State<DemoStagesPage>
       _inGrowth = false;
       _autoPlaying = false;
       _finishedGrowth = false;
-      _growthLevel = 17;
+      _growthLevel = _finalLevel;
       _launch.value = 1;
       _index = _stages.length - 1;
     });
@@ -260,7 +265,7 @@ class _DemoStagesPageState extends State<DemoStagesPage>
           );
 
     final progress = _inGrowth
-        ? 0.85 + 0.15 * ((_growthLevel - 17) / (_growthEndLevel - 17)).clamp(0.0, 1.0)
+        ? 0.85 + 0.15 * ((_growthLevel - _finalLevel) / (_growthEndLevel - _finalLevel)).clamp(0.0, 1.0)
         : (_index / stages.length);
 
     return Scaffold(

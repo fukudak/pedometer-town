@@ -6,6 +6,13 @@ import 'package:pedometer_town/widgets/companion/companion_avatar.dart';
 
 void main() {
   testWidgets('全進化段階の CompanionAvatar が描画できる', (tester) async {
+    // 段階数ぶんの高さを確保し、ListView のビューポート外で
+    // レンダリングされない項目が出ないようにする。
+    tester.view.physicalSize = const Size(1080, 4000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -31,20 +38,22 @@ void main() {
   });
 
   test('EarthLights は地球が1個完成するたびに真っ暗にリセットされる', () {
-    // 最終段階直前（16）はほぼ満点の明るさ
-    expect(EarthLights.countFor(16), greaterThan(0));
-    expect(EarthLights.glowFor(16), closeTo(0.94, 0.01));
+    final finalLevel = CompanionStages.stages.last.minLevel;
+
+    // 最終段階直前はほぼ満点の明るさ
+    expect(EarthLights.countFor(finalLevel - 1), greaterThan(0));
+    expect(EarthLights.glowFor(finalLevel - 1), closeTo(0.98, 0.02));
 
     // 最終段階到達＝地球1個目が完成した瞬間は真っ暗
-    expect(EarthLights.countFor(17), 0);
-    expect(EarthLights.glowFor(17), 0.0);
+    expect(EarthLights.countFor(finalLevel), 0);
+    expect(EarthLights.glowFor(finalLevel), 0.0);
 
-    // 2個目の地球が完成する直前（33）は再びほぼ満点
-    expect(EarthLights.countFor(33), greaterThan(0));
-    expect(EarthLights.glowFor(33), closeTo(0.94, 0.01));
+    // 2個目の地球が完成する直前は再びほぼ満点
+    expect(EarthLights.countFor(finalLevel * 2 - 1), greaterThan(0));
+    expect(EarthLights.glowFor(finalLevel * 2 - 1), closeTo(0.98, 0.02));
 
-    // 2個目の地球が完成した瞬間（34）も再び真っ暗
-    expect(EarthLights.countFor(34), 0);
-    expect(EarthLights.glowFor(34), 0.0);
+    // 2個目の地球が完成した瞬間も再び真っ暗
+    expect(EarthLights.countFor(finalLevel * 2), 0);
+    expect(EarthLights.glowFor(finalLevel * 2), 0.0);
   });
 }
