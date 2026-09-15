@@ -27,6 +27,7 @@ class CompanionProvider extends ChangeNotifier {
   DateTime? _lastFedAt;
   final List<Achievement> _pendingCelebrations = [];
   final List<CompanionStage> _pendingStageCelebrations = [];
+  final List<int> _pendingStarCompletions = [];
   FeedEvent? _pendingFeedEvent;
   final Set<String> _celebratedStageIds;
   bool _investing = false;
@@ -76,6 +77,11 @@ class CompanionProvider extends ChangeNotifier {
   List<CompanionStage> get pendingStageCelebrations =>
       List.unmodifiable(_pendingStageCelebrations);
 
+  /// まだ画面で祝福表示されていない「星の完成」イベント。値は完成した時点の
+  /// 完成数（[CompanionStages.earthCount]）。
+  List<int> get pendingStarCompletions =>
+      List.unmodifiable(_pendingStarCompletions);
+
   FeedEvent? get pendingFeedEvent => _pendingFeedEvent;
 
   bool isStageCelebrated(String stageId) => _celebratedStageIds.contains(stageId);
@@ -87,6 +93,10 @@ class CompanionProvider extends ChangeNotifier {
 
   void clearPendingStageCelebrations() {
     _pendingStageCelebrations.clear();
+  }
+
+  void clearPendingStarCompletions() {
+    _pendingStarCompletions.clear();
   }
 
   void clearFeedEvent() {
@@ -150,6 +160,20 @@ class CompanionProvider extends ChangeNotifier {
 
     _pendingFeedEvent = FeedEvent(type: type, createdAt: _now());
     await _recordStageCelebrations(beforeLevel: beforeLevel, afterLevel: afterLevel);
+    _recordStarCompletions(beforeLevel: beforeLevel, afterLevel: afterLevel);
+  }
+
+  /// 「星が完成した」（[CompanionStages.earthCount] が増えた）ことを検出し、
+  /// 画面側でお祝い演出を出せるようキューに積む。
+  void _recordStarCompletions({
+    required int beforeLevel,
+    required int afterLevel,
+  }) {
+    final before = CompanionStages.earthCount(beforeLevel);
+    final after = CompanionStages.earthCount(afterLevel);
+    for (var count = before + 1; count <= after; count++) {
+      _pendingStarCompletions.add(count);
+    }
   }
 
   /// 新たに条件を満たした実績を解除し、履歴に記録する。

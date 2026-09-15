@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:pedometer_town/constants/companion_stages.dart';
 import 'package:pedometer_town/data/local_storage.dart';
 import 'package:pedometer_town/domain/models/battery_state.dart';
 import 'package:pedometer_town/domain/models/companion_state.dart';
@@ -121,8 +122,8 @@ void main() {
       await companionProvider.feedChosen(FeedItemType.meal);
 
       expect(companionProvider.pendingStageCelebrations.length, 1);
-      expect(companionProvider.pendingStageCelebrations.first.id, 'crack');
-      expect(companionProvider.isStageCelebrated('crack'), isTrue);
+      expect(companionProvider.pendingStageCelebrations.first.id, 'spark');
+      expect(companionProvider.isStageCelebrated('spark'), isTrue);
       expect(storage.loadCompanionStageEvents().length, 1);
     });
 
@@ -141,8 +142,33 @@ void main() {
 
       expect(migrated.companion.level, 10);
       expect(migrated.pendingStageCelebrations, isEmpty);
-      expect(migrated.isStageCelebrated('crack'), isTrue);
-      expect(migrated.isStageCelebrated('reliable'), isTrue);
+      expect(migrated.isStageCelebrated('spark'), isTrue);
+      expect(migrated.isStageCelebrated('district'), isTrue);
+    });
+  });
+
+  group('CompanionProvider 星の完成祝福', () {
+    test('最終段階到達で pendingStarCompletions に1個積まれる', () async {
+      final finalLevel = CompanionStages.stages.last.minLevel;
+
+      for (var i = 0; i < finalLevel - 1; i++) {
+        await companionProvider.feedChosen(FeedItemType.meal);
+      }
+      expect(companionProvider.pendingStarCompletions, isEmpty);
+
+      await companionProvider.feedChosen(FeedItemType.meal);
+
+      expect(companionProvider.pendingStarCompletions, [1]);
+    });
+
+    test('clearPendingStarCompletions 後はキューが空になる', () async {
+      final finalLevel = CompanionStages.stages.last.minLevel;
+      for (var i = 0; i < finalLevel; i++) {
+        await companionProvider.feedChosen(FeedItemType.meal);
+      }
+      companionProvider.clearPendingStarCompletions();
+
+      expect(companionProvider.pendingStarCompletions, isEmpty);
     });
   });
 

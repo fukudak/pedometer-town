@@ -9,35 +9,45 @@ void main() {
     expect(TownStats.buildingCount(1), 1);
     expect(TownStats.population(1), greaterThan(0));
 
-    expect(TownStats.buildingCount(17), 72);
-    expect(TownStats.population(17), 72 * 100);
+    final finalLevel = CompanionStages.stages.last.minLevel;
+    expect(finalLevel, 55);
+    expect(TownStats.buildingCount(finalLevel), 145);
+    expect(TownStats.population(finalLevel), 145 * 100);
+  });
+
+  test('段階は20段階ある', () {
+    expect(CompanionStages.stages.length, 20);
   });
 
   test('nextMilestone は残り回数と次の姿を返す', () {
     final m = CompanionStages.nextMilestone(0);
     expect(m, isNotNull);
     expect(m!.remaining, 1);
-    expect(m.stage.id, 'crack');
+    expect(m.stage.id, 'spark');
     expect(m.buildings, greaterThan(0));
 
-    final nearRocket = CompanionStages.nextMilestone(15);
-    expect(nearRocket!.remaining, 2);
+    final finalLevel = CompanionStages.stages.last.minLevel;
+    final secondToLast = CompanionStages.stages[CompanionStages.stages.length - 2];
+    final nearRocket = CompanionStages.nextMilestone(secondToLast.minLevel);
+    expect(nearRocket!.remaining, finalLevel - secondToLast.minLevel);
     expect(nearRocket.stage.id, 'star');
 
-    expect(CompanionStages.nextMilestone(17), isNull);
+    expect(CompanionStages.nextMilestone(finalLevel), isNull);
   });
 
   test('earthCount は最終段階到達後、一定回数ごとに1個ずつ積み上がる', () {
-    expect(CompanionStages.earthCount(16), 0);
-    expect(CompanionStages.remainingForNextEarth(16), isNull);
+    final finalLevel = CompanionStages.stages.last.minLevel;
 
-    expect(CompanionStages.earthCount(17), 1);
-    expect(CompanionStages.remainingForNextEarth(17), 17);
+    expect(CompanionStages.earthCount(finalLevel - 1), 0);
+    expect(CompanionStages.remainingForNextEarth(finalLevel - 1), isNull);
 
-    expect(CompanionStages.earthCount(33), 1);
-    expect(CompanionStages.remainingForNextEarth(33), 1);
+    expect(CompanionStages.earthCount(finalLevel), 1);
+    expect(CompanionStages.remainingForNextEarth(finalLevel), finalLevel);
 
-    expect(CompanionStages.earthCount(34), 2);
-    expect(CompanionStages.remainingForNextEarth(34), 17);
+    expect(CompanionStages.earthCount(finalLevel * 2 - 1), 1);
+    expect(CompanionStages.remainingForNextEarth(finalLevel * 2 - 1), 1);
+
+    expect(CompanionStages.earthCount(finalLevel * 2), 2);
+    expect(CompanionStages.remainingForNextEarth(finalLevel * 2), finalLevel);
   });
 }
