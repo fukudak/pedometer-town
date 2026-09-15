@@ -38,7 +38,12 @@ class HealthServiceException implements Exception {
 
 /// 歩数取得サービス
 /// - iOS: HealthKit（health パッケージ）
-/// - Android: ハードウェアステップカウンターセンサー（pedometer_plus）
+/// - Android: 「今日の歩数」はハードウェアステップカウンターセンサー（pedometer）を主系として使う。
+///   Health Connect は OPPO 等一部機種で OS レベルの同期が行われず取得できないことがある
+///   （2026-06-18 51d764d でセンサー直読みに切り替えた経緯）ため、リアルタイム同期の主系には
+///   できない。一方センサーは「過去の特定の日」を個別取得する手段が無いため、起動しなかった
+///   日をさかのぼって記録する用途に限り、副系として Health Connect（[getStepsForDate]）も
+///   ベストエフォートで使う。
 class HealthService {
   final Health _health;
   final LocalStorage? _storage;
@@ -52,23 +57,33 @@ class HealthService {
   // 「最終同期時点のセンサー値」をベースラインとして LocalStorage に永続化し、
   // 前回同期からの増分を算出する。
 
+  /// health パッケージ（HealthKit / Health Connect）を初期化する。
+  /// Android では歩数取得の主系ではない（Health Connect 非対応機種がある）ため、
+  /// 失敗してもさかのぼり取得が使えなくなるだけで致命的ではなく、例外を投げず無視する。
   Future<void> configure() async {
-    if (Platform.isAndroid) return;
     try {
       await _health.configure();
     } catch (_) {
+      if (Platform.isAndroid) return;
       throw const HealthServiceException('健康データの初期設定に失敗しました');
     }
   }
 
   /// 権限をリクエストする。
-  /// - Android: ACTIVITY_RECOGNITION（歩数センサー用）
-  /// - iOS: HealthKit の歩数読み取り権限
+  /// - Android: ACTIVITY_RECOGNITION（歩数センサー用、必須）に加え、
+  ///   Health Connect の歩数読み取り権限もさかのぼり取得のためベストエフォートで要求する
+  ///   （未インストール・拒否されても [requestPermissions] 自体は失敗させない）
+  /// - iOS: HealthKit の歩数読み取り権限（必須）
   Future<void> requestPermissions() async {
     if (Platform.isAndroid) {
       final status = await Permission.activityRecognition.request();
       if (!status.isGranted) {
         throw const HealthServiceException('歩数センサーへのアクセスが必要です');
+      }
+      try {
+        await _health.requestAuthorization(_types);
+      } catch (_) {
+        // Health Connect 未インストール・非対応機種など。さかのぼり取得が使えないだけなので無視する。
       }
       return;
     }
@@ -197,14 +212,13 @@ class HealthService {
   /// アプリを開かなかった日をさかのぼって集計するために使う。
   ///
   /// - iOS: HealthKit は日付を指定した過去の集計にも対応しているため取得できる
-  /// - Android: センサーは「現在の累積値」しか返せず、過去の任意の日を
-  ///   個別に取得する手段がないため、常に null を返す
-  ///   （Android は代わりに [normalizeAndroidSteps] のベースライン繰り越しで対応する）
+  /// - Android: センサーは「現在の累積値」しか返せず過去の任意の日を個別取得できないため、
+  ///   副系として Health Connect（health パッケージ）に問い合わせる。Health Connect
+  ///   非対応・未許可の機種では取得できず null を返す（その日は
+  ///   [normalizeAndroidSteps] のベースライン繰り越しでのみ対応される＝1日として按分されない）
   ///
   /// 取得できない場合は例外を投げず null を返す（さかのぼり取得はベストエフォートのため）。
   Future<int?> getStepsForDate(DateTime date) async {
-    if (Platform.isAndroid) return null;
-
     final startOfDay = DateTime(date.year, date.month, date.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
     try {
