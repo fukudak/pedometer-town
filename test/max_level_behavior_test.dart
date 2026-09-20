@@ -69,7 +69,11 @@ void main() {
     final level = finalLevel - 1;
     await pumpAtLevel(tester, level);
 
-    expect(find.text('発展度 $level'), findsOneWidget);
+    expect(
+      find.text(
+          '発展度 ${CompanionStages.stageNumber(level)}/${CompanionStages.stages.length}'),
+      findsOneWidget,
+    );
     expect(find.textContaining('あと 1 回投入すると灯りが広がる'), findsOneWidget);
     expect(find.textContaining('完成した星'), findsNothing);
   });
@@ -77,7 +81,11 @@ void main() {
   testWidgets('最終段階到達で星ストックカードに切り替わる', (WidgetTester tester) async {
     await pumpAtLevel(tester, finalLevel);
 
-    expect(find.text('発展度 $finalLevel'), findsOneWidget);
+    expect(
+      find.text(
+          '発展度 ${CompanionStages.stageNumber(finalLevel)}/${CompanionStages.stages.length}'),
+      findsOneWidget,
+    );
     expect(find.text('軌道から見た星'), findsOneWidget);
     expect(find.textContaining('完成した星 1 個'), findsOneWidget);
     expect(find.textContaining('あと $finalLevel 回投入すると次の星が完成する'), findsOneWidget);
@@ -88,7 +96,11 @@ void main() {
     final level = finalLevel * 2;
     await pumpAtLevel(tester, level);
 
-    expect(find.text('発展度 $level'), findsOneWidget);
+    expect(
+      find.text(
+          '発展度 ${CompanionStages.stageNumber(level)}/${CompanionStages.stages.length}'),
+      findsOneWidget,
+    );
     expect(find.textContaining('完成した星 2 個'), findsOneWidget);
     expect(find.textContaining('あと $finalLevel 回投入すると次の星が完成する'), findsOneWidget);
   });

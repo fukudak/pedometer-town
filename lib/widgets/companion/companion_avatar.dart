@@ -239,12 +239,14 @@ class EarthLights {
 
   /// 最終段階到達前はそのままの発展度。到達後は、完成した地球1個分の
   /// 投入回数を1周期として発展度を周期内の進み具合に置き換える。
-  /// これにより、地球が1個完成した瞬間に真っ暗に戻り、次の地球へ向けて
-  /// また灯りが広がっていく見た目になる。
+  /// 地球が完成した瞬間（周期のちょうど境目）は満天の灯りを見せ、
+  /// その次の投入から真っ暗に戻って次の地球へ向けて灯りが広がっていく。
   static int _cycleLevel(int level) {
     if (!CompanionStages.isAtFinalStage(level)) return level;
     final cycle = CompanionStages.stages.last.minLevel;
-    return CompanionStages.postRocketGrowth(level) % cycle;
+    final progress = CompanionStages.postRocketGrowth(level);
+    if (progress % cycle == 0) return cycle;
+    return progress % cycle;
   }
 }
 

@@ -271,7 +271,7 @@ class _CompanionScreenState extends State<CompanionScreen> with TickerProviderSt
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '発展度 $level',
+                  '発展度 ${CompanionStages.stageNumber(level)}/${CompanionStages.stages.length}',
                   style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.outline),
                 ),
               ],
