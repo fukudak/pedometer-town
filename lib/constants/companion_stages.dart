@@ -124,6 +124,9 @@ class CompanionStages {
     }
   }
 
+  /// 現在の発展度が全stages.length段階中の何段階目か（1-based）。
+  static int stageNumber(int level) => stages.indexOf(forLevel(level)) + 1;
+
   static bool isAtFinalStage(int level) => level >= stages.last.minLevel;
 
   /// 最終段階到達後の追加成長量（0以上）。見た目の段階は変えず、数だけ増やす。

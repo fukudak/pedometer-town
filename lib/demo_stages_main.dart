@@ -258,7 +258,7 @@ class _DemoStagesPageState extends State<DemoStagesPage>
             description: '投入するたび、夜の地球がさらに明るくなる。',
           )
         : (
-            title: level == 0 ? 'はじまり' : '発展度 $level',
+            title: level == 0 ? 'はじまり' : '発展度 ${_index + 1}/${stages.length}',
             description: level == 0
                 ? 'まだ暗い地球。投入するほど灯りが増えていく。'
                 : '夜の地球に街の明かりがともっている。',
