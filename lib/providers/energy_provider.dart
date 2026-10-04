@@ -34,15 +34,16 @@ class EnergyProvider extends ChangeNotifier {
     this._settingsProvider, {
     DateTime Function()? now,
     double Function()? coefficientSupplier,
-  })  : _now = now ?? DateTime.now,
-        _coefficientSupplier =
-            coefficientSupplier ?? (() => GameConstants.energyCoefficient),
-        _battery = _storage.loadBatteryState(_storage.loadCompanionState()),
-        _today = _storage
-            .loadDailyStepRecord(formatDateKey((now ?? DateTime.now)())),
-        _lastSyncedAt = _storage.loadLastSyncedAt(),
-        _lifetimeEnergyWh = _storage.loadLifetimeEnergyWh(),
-        _pendingBatteries = _storage.loadPendingBatteries();
+  }) : _now = now ?? DateTime.now,
+       _coefficientSupplier =
+           coefficientSupplier ?? (() => GameConstants.energyCoefficient),
+       _battery = _storage.loadBatteryState(_storage.loadCompanionState()),
+       _today = _storage.loadDailyStepRecord(
+         formatDateKey((now ?? DateTime.now)()),
+       ),
+       _lastSyncedAt = _storage.loadLastSyncedAt(),
+       _lifetimeEnergyWh = _storage.loadLifetimeEnergyWh(),
+       _pendingBatteries = _storage.loadPendingBatteries();
 
   void setCoefficientSupplier(double Function() supplier) {
     _coefficientSupplier = supplier;
@@ -80,6 +81,12 @@ class EnergyProvider extends ChangeNotifier {
   /// （[LocalStorage.loadTodaySyncedCursor]）を使う。表示用の [DailyStepRecord] を
   /// 削除しても、この起点が失われないため再同期で歩数・発電量が二重加算されない。
   Future<void> syncStepsFromHealth() async {
+    // 前回の保存が途中で終了していた場合、Health から新しい値を読む前に確定状態へ
+    // 復旧する。復旧後の値をメモリにも読み直すことで、同じ Provider インスタンスで
+    // 再試行した場合も二重加算しない。
+    await _storage.recoverPendingEnergySync();
+    _reloadProgressFromStorage();
+
     await _healthService.requestPermissions();
     await _backfillMissedDays();
 
@@ -98,7 +105,7 @@ class EnergyProvider extends ChangeNotifier {
     if (effectiveDelta == 0) {
       _today = _today.copyWith(lastSyncedSteps: totalSteps);
       _lastSyncedAt = _now();
-      await _persist(todayKey, totalSteps);
+      await _persist(todayKey, totalSteps, _storage.loadFullBatteryEvents());
       notifyListeners();
       return;
     }
@@ -119,12 +126,14 @@ class EnergyProvider extends ChangeNotifier {
     );
     _lastSyncedAt = _now();
 
-    if (batteriesFilled > 0) {
-      await _recordFullBatteries(todayKey, batteriesFilled);
-      _pendingBatteries += batteriesFilled;
-    }
+    final fullBatteryEvents = _appendFullBatteryEvents(
+      _storage.loadFullBatteryEvents(),
+      todayKey,
+      batteriesFilled,
+    );
+    _pendingBatteries += batteriesFilled;
 
-    await _persist(todayKey, totalSteps);
+    await _persist(todayKey, totalSteps, fullBatteryEvents);
     notifyListeners();
   }
 
@@ -137,14 +146,10 @@ class EnergyProvider extends ChangeNotifier {
   /// 古い順に走査すると、長期間アプリを開かなかったときに上限を古い日で使い切ってしまい、
   /// 直近の歩数が取りこぼされるため。
   ///
-  /// 冪等性: 各日の処理は「日次記録の保存 → 蓄電池・累積発電量・ストック・満タン履歴の保存
-  /// → コミット済みマーカーへの追加」を1日ずつ順番に行い、コミット済みマーカーに入っている
-  /// 日だけを「反映済み」とみなす。処理の途中でアプリが終了したり保存に失敗したりしても、
-  /// マーカーが付いていない日は次回また候補になり再試行される一方、マーカーが付いた日は
-  /// 二重に加算されない。SharedPreferences には複数キーにまたがる本当のトランザクションは
-  /// 無いため、1日の処理の最中（例: 蓄電池保存後・マーカー保存前）に中断した場合は
-  /// 理論上ごく僅かな不整合が残り得るが、現実的に起きやすい失敗（日をまたぐ複数日の処理中に
-  /// 1日だけ失敗する、次回同期まで中断する）に対しては安全に回復できる。
+  /// 冪等性: 日ごとの確定状態全体を [EnergySyncCommit] として先に1つのジャーナルへ
+  /// 保存してから、日次記録・蓄電池・累積量・ストック・満タン履歴・コミット済み日へ
+  /// 反映する。途中終了時は次回同期の冒頭で同じ確定状態を再適用するため、どのキーの
+  /// 書き込み後に中断しても二重加算や取りこぼしを起こさない。
   Future<void> _backfillMissedDays() async {
     final lastSynced = _lastSyncedAt;
     if (lastSynced == null) return;
@@ -212,25 +217,30 @@ class EnergyProvider extends ChangeNotifier {
             );
       final batteriesFilled = steps <= 0 ? 0 : _applyEnergyGain(energyWh);
 
-      await _storage.saveDailyStepRecord(DailyStepRecord(
+      final dailyRecord = DailyStepRecord(
         date: dateKey,
         totalSteps: steps,
         totalEnergyWh: energyWh,
         lastSyncedSteps: steps,
-      ));
-
-      if (batteriesFilled > 0) {
-        await _recordFullBatteries(dateKey, batteriesFilled);
-        _pendingBatteries += batteriesFilled;
-      }
-
-      // この日までの反映結果を確定させてからコミット済みマーカーを追加する。
-      await _storage.saveBatteryState(_battery);
-      await _storage.saveLifetimeEnergyWh(_lifetimeEnergyWh);
-      await _storage.savePendingBatteries(_pendingBatteries);
+      );
+      final fullBatteryEvents = _appendFullBatteryEvents(
+        _storage.loadFullBatteryEvents(),
+        dateKey,
+        batteriesFilled,
+      );
+      _pendingBatteries += batteriesFilled;
 
       committed.add(dateKey);
-      await _storage.saveBackfillCommittedDates(committed);
+      await _storage.commitEnergySync(
+        EnergySyncCommit(
+          battery: _battery,
+          dailyRecord: dailyRecord,
+          lifetimeEnergyWh: _lifetimeEnergyWh,
+          pendingBatteries: _pendingBatteries,
+          fullBatteryEvents: fullBatteryEvents,
+          backfillCommittedDates: Set.unmodifiable(committed),
+        ),
+      );
     }
   }
 
@@ -243,32 +253,17 @@ class EnergyProvider extends ChangeNotifier {
     return addResult.batteriesFilled;
   }
 
-  /// ストックを指定個数消費する。不足していれば消費せず false を返す。
-  Future<bool> consumeStockedBatteries(int amount) async {
-    if (_pendingBatteries < amount) return false;
-    _pendingBatteries -= amount;
-    await _storage.savePendingBatteries(_pendingBatteries);
-    notifyListeners();
-    return true;
-  }
-
-  /// [consumeStockedBatteries] のロールバック用。消費後に後続処理が失敗した場合、
-  /// 消費した分をストックに戻す。
-  Future<void> creditStockedBatteries(int amount) async {
-    _pendingBatteries += amount;
-    await _storage.savePendingBatteries(_pendingBatteries);
-    notifyListeners();
-  }
-
-  /// 満タンになった蓄電池を指定日の履歴に記録する。
-  Future<void> _recordFullBatteries(String dateKey, int count) async {
-    final events = _storage.loadFullBatteryEvents();
-    final newEvents = [
+  /// 満タンになった蓄電池を指定日の履歴へ追加した新しい一覧を返す。
+  List<FullBatteryEvent> _appendFullBatteryEvents(
+    List<FullBatteryEvent> events,
+    String dateKey,
+    int count,
+  ) {
+    return [
       ...events,
       for (var i = 0; i < count; i++)
         FullBatteryEvent(number: events.length + i + 1, date: dateKey),
     ];
-    await _storage.saveFullBatteryEvents(newEvents);
   }
 
   /// 給餌効果などにより変化した蓄電池状態を反映・永続化する。
@@ -280,13 +275,17 @@ class EnergyProvider extends ChangeNotifier {
 
   /// 永続化済みの値で表示を更新する。
   void refreshDisplay() {
+    _reloadProgressFromStorage();
+    notifyListeners();
+  }
+
+  void _reloadProgressFromStorage() {
     final companion = _storage.loadCompanionState();
     _battery = _storage.loadBatteryState(companion);
     _today = _storage.loadDailyStepRecord(formatDateKey(_now()));
     _lastSyncedAt = _storage.loadLastSyncedAt();
     _lifetimeEnergyWh = _storage.loadLifetimeEnergyWh();
     _pendingBatteries = _storage.loadPendingBatteries();
-    notifyListeners();
   }
 
   /// 蓄電池・累積発電量・ストックを初期状態に戻す（全履歴クリアと連動）。
@@ -302,14 +301,22 @@ class EnergyProvider extends ChangeNotifier {
     refreshDisplay();
   }
 
-  Future<void> _persist(String todayKey, int cursorSteps) async {
-    await _storage.saveBatteryState(_battery);
-    await _storage.saveDailyStepRecord(_today);
-    await _storage.saveTodaySyncedCursor(todayKey, cursorSteps);
-    if (_lastSyncedAt != null) {
-      await _storage.saveLastSyncedAt(_lastSyncedAt!);
-    }
-    await _storage.saveLifetimeEnergyWh(_lifetimeEnergyWh);
-    await _storage.savePendingBatteries(_pendingBatteries);
+  Future<void> _persist(
+    String todayKey,
+    int cursorSteps,
+    List<FullBatteryEvent> fullBatteryEvents,
+  ) async {
+    await _storage.commitEnergySync(
+      EnergySyncCommit(
+        battery: _battery,
+        dailyRecord: _today,
+        lifetimeEnergyWh: _lifetimeEnergyWh,
+        pendingBatteries: _pendingBatteries,
+        fullBatteryEvents: fullBatteryEvents,
+        syncedDate: todayKey,
+        syncedSteps: cursorSteps,
+        lastSyncedAt: _lastSyncedAt,
+      ),
+    );
   }
 }

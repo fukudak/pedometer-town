@@ -76,7 +76,11 @@ void main() {
 
     test('保存して復元できる', () async {
       final storage = LocalStorage(await SharedPreferences.getInstance());
-      const companion = CompanionState(mealCount: 2, boosterCount: 1, toyCount: 1);
+      const companion = CompanionState(
+        mealCount: 2,
+        boosterCount: 1,
+        toyCount: 1,
+      );
       await storage.saveCompanionState(companion);
       final loaded = storage.loadCompanionState();
       expect(loaded.mealCount, 2);
@@ -89,7 +93,7 @@ void main() {
       await prefs.setString(
         'town_buildings',
         '[{"type":"house","x":0,"y":0},{"type":"house","x":1,"y":0},'
-        '{"type":"powerPlant","x":2,"y":0},{"type":"park","x":3,"y":0}]',
+            '{"type":"powerPlant","x":2,"y":0},{"type":"park","x":3,"y":0}]',
       );
       final storage = LocalStorage(prefs);
 
@@ -142,47 +146,55 @@ void main() {
       final storage = LocalStorage(await SharedPreferences.getInstance());
       await storage.saveDailyStepRecord(
         const DailyStepRecord(
-            date: '2026-06-10',
-            totalSteps: 100,
-            totalEnergyWh: 1.0,
-            lastSyncedSteps: 100),
+          date: '2026-06-10',
+          totalSteps: 100,
+          totalEnergyWh: 1.0,
+          lastSyncedSteps: 100,
+        ),
       );
       await storage.saveDailyStepRecord(
         const DailyStepRecord(
-            date: '2026-06-12',
-            totalSteps: 300,
-            totalEnergyWh: 3.0,
-            lastSyncedSteps: 300),
+          date: '2026-06-12',
+          totalSteps: 300,
+          totalEnergyWh: 3.0,
+          lastSyncedSteps: 300,
+        ),
       );
       await storage.saveDailyStepRecord(
         const DailyStepRecord(
-            date: '2026-06-11',
-            totalSteps: 200,
-            totalEnergyWh: 2.0,
-            lastSyncedSteps: 200),
+          date: '2026-06-11',
+          totalSteps: 200,
+          totalEnergyWh: 2.0,
+          lastSyncedSteps: 200,
+        ),
       );
 
       final records = storage.loadAllDailyRecords();
 
-      expect(records.map((r) => r.date).toList(),
-          ['2026-06-12', '2026-06-11', '2026-06-10']);
+      expect(records.map((r) => r.date).toList(), [
+        '2026-06-12',
+        '2026-06-11',
+        '2026-06-10',
+      ]);
     });
 
     test('deleteDailyRecord: 指定日の記録だけ削除される', () async {
       final storage = LocalStorage(await SharedPreferences.getInstance());
       await storage.saveDailyStepRecord(
         const DailyStepRecord(
-            date: '2026-06-10',
-            totalSteps: 100,
-            totalEnergyWh: 1.0,
-            lastSyncedSteps: 100),
+          date: '2026-06-10',
+          totalSteps: 100,
+          totalEnergyWh: 1.0,
+          lastSyncedSteps: 100,
+        ),
       );
       await storage.saveDailyStepRecord(
         const DailyStepRecord(
-            date: '2026-06-11',
-            totalSteps: 200,
-            totalEnergyWh: 2.0,
-            lastSyncedSteps: 200),
+          date: '2026-06-11',
+          totalSteps: 200,
+          totalEnergyWh: 2.0,
+          lastSyncedSteps: 200,
+        ),
       );
 
       await storage.deleteDailyRecord('2026-06-10');
@@ -195,17 +207,19 @@ void main() {
       final storage = LocalStorage(await SharedPreferences.getInstance());
       await storage.saveDailyStepRecord(
         const DailyStepRecord(
-            date: '2026-06-10',
-            totalSteps: 100,
-            totalEnergyWh: 1.0,
-            lastSyncedSteps: 100),
+          date: '2026-06-10',
+          totalSteps: 100,
+          totalEnergyWh: 1.0,
+          lastSyncedSteps: 100,
+        ),
       );
       await storage.saveDailyStepRecord(
         const DailyStepRecord(
-            date: '2026-06-11',
-            totalSteps: 200,
-            totalEnergyWh: 2.0,
-            lastSyncedSteps: 200),
+          date: '2026-06-11',
+          totalSteps: 200,
+          totalEnergyWh: 2.0,
+          lastSyncedSteps: 200,
+        ),
       );
 
       await storage.clearAllDailyRecords();
@@ -300,6 +314,48 @@ void main() {
       await storage.saveCompanionLastFedAt(time);
 
       expect(storage.loadCompanionLastFedAt(), time);
+    });
+  });
+
+  group('破損した保存データ', () {
+    test('壊れた日次記録は空として扱い、他の正常な履歴は読み込める', () async {
+      SharedPreferences.setMockInitialValues({
+        'daily_record_2026-09-25': '{broken',
+        'daily_record_2026-09-24':
+            '{"date":"2026-09-24","totalSteps":100,"totalEnergyWh":100.0,"lastSyncedSteps":100}',
+      });
+      final storage = LocalStorage(await SharedPreferences.getInstance());
+
+      expect(storage.loadDailyStepRecord('2026-09-25').totalSteps, 0);
+      final records = storage.loadAllDailyRecords();
+      expect(records, hasLength(1));
+      expect(records.single.date, '2026-09-24');
+    });
+
+    test('壊れたイベント履歴は空として扱う', () async {
+      SharedPreferences.setMockInitialValues({
+        'full_battery_events': 'not-json',
+        'companion_achievement_events': 'not-json',
+        'companion_stage_events': 'not-json',
+      });
+      final storage = LocalStorage(await SharedPreferences.getInstance());
+
+      expect(storage.loadFullBatteryEvents(), isEmpty);
+      expect(storage.loadAchievementEvents(), isEmpty);
+      expect(storage.loadCompanionStageEvents(), isEmpty);
+    });
+
+    test('壊れた同期ジャーナルは破棄され、以後の復旧を妨げない', () async {
+      SharedPreferences.setMockInitialValues({
+        'energy_sync_journal': 'not-json',
+        'investment_journal': 'not-json',
+      });
+      final storage = LocalStorage(await SharedPreferences.getInstance());
+
+      expect(await storage.recoverPendingEnergySync(), isFalse);
+      expect(await storage.recoverPendingInvestment(), isFalse);
+      expect(await storage.recoverPendingEnergySync(), isFalse);
+      expect(await storage.recoverPendingInvestment(), isFalse);
     });
   });
 }

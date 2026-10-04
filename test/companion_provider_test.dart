@@ -11,14 +11,27 @@ import 'package:pedometer_town/providers/energy_provider.dart';
 import 'package:pedometer_town/providers/settings_provider.dart';
 import 'package:pedometer_town/services/health_service.dart';
 
-/// [LocalStorage.saveCompanionState] だけが失敗する状況を再現するフェイク
-/// （投入処理の途中失敗時のロールバックを検証するため）。
+/// [LocalStorage.saveCompanionState] だけが失敗する状況を再現するフェイク。
 class _ThrowingCompanionSaveStorage extends LocalStorage {
   _ThrowingCompanionSaveStorage(super.prefs);
 
   @override
   Future<void> saveCompanionState(CompanionState companion) async {
     throw Exception('保存失敗（テスト用）');
+  }
+}
+
+class _InterruptingInvestmentStorage extends LocalStorage {
+  bool _failed = false;
+
+  _InterruptingInvestmentStorage(super.prefs);
+
+  @override
+  Future<void> beforeInvestmentCommitStep(String step) async {
+    if (!_failed && step == 'pending_batteries_saved') {
+      _failed = true;
+      throw StateError('投入保存を中断（テスト用）');
+    }
   }
 }
 
@@ -33,7 +46,11 @@ void main() {
     storage = LocalStorage(await SharedPreferences.getInstance());
     settingsProvider = SettingsProvider(storage);
     energyProvider = EnergyProvider(storage, HealthService(), settingsProvider);
-    companionProvider = CompanionProvider(storage, energyProvider, settingsProvider);
+    companionProvider = CompanionProvider(
+      storage,
+      energyProvider,
+      settingsProvider,
+    );
   });
 
   /// 実際のUIと同じく meal を n 回投入する（feedAuto の代替）。
@@ -41,6 +58,15 @@ void main() {
     for (var i = 0; i < n; i++) {
       await companionProvider.feedChosen(FeedItemType.meal);
     }
+  }
+
+  Future<void> seedPendingBatteries(
+    LocalStorage targetStorage,
+    EnergyProvider targetEnergy,
+    int count,
+  ) async {
+    await targetStorage.savePendingBatteries(count);
+    targetEnergy.refreshDisplay();
   }
 
   group('CompanionProvider 給餌種別の効果', () {
@@ -127,24 +153,34 @@ void main() {
       expect(storage.loadCompanionStageEvents().length, 1);
     });
 
-    test('旧町データ（house×4,powerPlant×3,park×3=10）からの移行後は過去分の段階祝福は pending にならない', () async {
-      SharedPreferences.setMockInitialValues({
-        'town_buildings': '[{"type":"house","x":0,"y":0},{"type":"powerPlant","x":1,"y":0},{"type":"park","x":2,"y":0},{"type":"house","x":3,"y":0},{"type":"powerPlant","x":4,"y":0},{"type":"park","x":0,"y":1},{"type":"house","x":1,"y":1},{"type":"powerPlant","x":2,"y":1},{"type":"park","x":3,"y":1},{"type":"house","x":4,"y":1}]',
-      });
-      final migratedStorage = LocalStorage(await SharedPreferences.getInstance());
-      final migratedSettings = SettingsProvider(migratedStorage);
-      final migratedEnergy = EnergyProvider(
-        migratedStorage,
-        HealthService(),
-        migratedSettings,
-      );
-      final migrated = CompanionProvider(migratedStorage, migratedEnergy, migratedSettings);
+    test(
+      '旧町データ（house×4,powerPlant×3,park×3=10）からの移行後は過去分の段階祝福は pending にならない',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'town_buildings':
+              '[{"type":"house","x":0,"y":0},{"type":"powerPlant","x":1,"y":0},{"type":"park","x":2,"y":0},{"type":"house","x":3,"y":0},{"type":"powerPlant","x":4,"y":0},{"type":"park","x":0,"y":1},{"type":"house","x":1,"y":1},{"type":"powerPlant","x":2,"y":1},{"type":"park","x":3,"y":1},{"type":"house","x":4,"y":1}]',
+        });
+        final migratedStorage = LocalStorage(
+          await SharedPreferences.getInstance(),
+        );
+        final migratedSettings = SettingsProvider(migratedStorage);
+        final migratedEnergy = EnergyProvider(
+          migratedStorage,
+          HealthService(),
+          migratedSettings,
+        );
+        final migrated = CompanionProvider(
+          migratedStorage,
+          migratedEnergy,
+          migratedSettings,
+        );
 
-      expect(migrated.companion.level, 10);
-      expect(migrated.pendingStageCelebrations, isEmpty);
-      expect(migrated.isStageCelebrated('spark'), isTrue);
-      expect(migrated.isStageCelebrated('district'), isTrue);
-    });
+        expect(migrated.companion.level, 10);
+        expect(migrated.pendingStageCelebrations, isEmpty);
+        expect(migrated.isStageCelebrated('spark'), isTrue);
+        expect(migrated.isStageCelebrated('district'), isTrue);
+      },
+    );
   });
 
   group('CompanionProvider 星の完成祝福', () {
@@ -181,7 +217,7 @@ void main() {
     });
 
     test('正常時はストックと発展度がそれぞれ正確に1変化する', () async {
-      await energyProvider.creditStockedBatteries(3);
+      await seedPendingBatteries(storage, energyProvider, 3);
 
       final invested = await companionProvider.investBattery();
 
@@ -191,7 +227,7 @@ void main() {
     });
 
     test('ストック1個で投入を連続実行しても発展度は1だけ増える', () async {
-      await energyProvider.creditStockedBatteries(1);
+      await seedPendingBatteries(storage, energyProvider, 1);
 
       final results = await Future.wait([
         companionProvider.investBattery(),
@@ -205,19 +241,54 @@ void main() {
 
     test('発展更新に失敗した場合、ストックも発展度も変化しない', () async {
       SharedPreferences.setMockInitialValues({});
-      final throwingStorage =
-          _ThrowingCompanionSaveStorage(await SharedPreferences.getInstance());
+      final throwingStorage = _ThrowingCompanionSaveStorage(
+        await SharedPreferences.getInstance(),
+      );
       final throwingSettings = SettingsProvider(throwingStorage);
-      final throwingEnergy =
-          EnergyProvider(throwingStorage, HealthService(), throwingSettings);
-      final throwingCompanion =
-          CompanionProvider(throwingStorage, throwingEnergy, throwingSettings);
-      await throwingEnergy.creditStockedBatteries(1);
+      final throwingEnergy = EnergyProvider(
+        throwingStorage,
+        HealthService(),
+        throwingSettings,
+      );
+      final throwingCompanion = CompanionProvider(
+        throwingStorage,
+        throwingEnergy,
+        throwingSettings,
+      );
+      await seedPendingBatteries(throwingStorage, throwingEnergy, 1);
 
       await expectLater(throwingCompanion.investBattery(), throwsException);
 
       expect(throwingCompanion.companion.level, 0);
       expect(throwingEnergy.pendingBatteries, 1);
+    });
+
+    test('複数キーへの保存途中で失敗しても、ジャーナルから一度だけ完了する', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final interruptingStorage = _InterruptingInvestmentStorage(prefs);
+      final interruptingSettings = SettingsProvider(interruptingStorage);
+      final interruptingEnergy = EnergyProvider(
+        interruptingStorage,
+        HealthService(),
+        interruptingSettings,
+      );
+      final interruptingCompanion = CompanionProvider(
+        interruptingStorage,
+        interruptingEnergy,
+        interruptingSettings,
+      );
+      await seedPendingBatteries(interruptingStorage, interruptingEnergy, 1);
+
+      final invested = await interruptingCompanion.investBattery();
+
+      expect(invested, isTrue);
+      expect(interruptingCompanion.companion.level, 1);
+      expect(interruptingEnergy.pendingBatteries, 0);
+      expect(interruptingStorage.loadCompanionState().level, 1);
+      expect(interruptingStorage.loadPendingBatteries(), 0);
+      expect(interruptingStorage.loadAchievementEvents(), hasLength(1));
+      expect(interruptingStorage.loadCompanionStageEvents(), hasLength(1));
     });
   });
 }
