@@ -15,7 +15,7 @@
 | UI | Material Design 3 | Expressive テーマ（角丸・tonal カラー） |
 | iOS 歩数 | `health` ^13.0.0 | HealthKit 経由 |
 | Android 歩数 | `pedometer` ^4.2.0 | ハードウェアステップカウンターセンサー |
-| Android 権限 | `permission_handler` ^12.0.3 | ACTIVITY_RECOGNITION(必須)。ほかマニフェストに `health.READ_STEPS`・位置情報。minSdk 26 |
+| Android 権限 | `permission_handler` ^12.0.3 | ACTIVITY_RECOGNITION。ほかマニフェストに位置情報。minSdk 26 |
 | GPS 速度 | `geolocator` ^13.0.0 | 歩行速度計測（設定画面） |
 | アプリ情報 | `package_info_plus` ^9.0.1 | 設定画面のバージョン表示を `pubspec.yaml` の `version` から実行時取得（2026-08-10 追加。手書き定数との二重管理解消のため） |
 | アイコン | `flutter_launcher_icons` ^0.14.3 | dev 依存 |
@@ -27,7 +27,7 @@
 | OS | 方式 | 補足 |
 |----|------|------|
 | iOS | HealthKit（`health` パッケージ） | 今日 0:00〜現在の歩数合計 |
-| Android | センサー直読み（`pedometer`） | 端末起動からの累積値をベースライン正規化して今日分を算出。過去日のみ Health Connect（`health`）をベストエフォートで併用 |
+| Android | センサー直読み（`pedometer`） | 端末起動からの累積値をベースライン正規化して今日分を算出 。数日空けた分は同期日にまとめて計上（過去日の個別取得はしない） |
 
 ---
 

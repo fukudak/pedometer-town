@@ -5,11 +5,16 @@ class DailyStepRecord {
   final double totalEnergyWh;
   final int lastSyncedSteps;
 
+  /// 数日アプリを開かなかった分がこの日にまとめて計上されたときの、集計の開始日
+  /// （`YYYY-MM-DD`）。まとめ計上でなければ null。
+  final String? rangeStart;
+
   const DailyStepRecord({
     required this.date,
     required this.totalSteps,
     required this.totalEnergyWh,
     required this.lastSyncedSteps,
+    this.rangeStart,
   });
 
   factory DailyStepRecord.empty(String date) => DailyStepRecord(
@@ -23,12 +28,14 @@ class DailyStepRecord {
     int? totalSteps,
     double? totalEnergyWh,
     int? lastSyncedSteps,
+    String? rangeStart,
   }) {
     return DailyStepRecord(
       date: date,
       totalSteps: totalSteps ?? this.totalSteps,
       totalEnergyWh: totalEnergyWh ?? this.totalEnergyWh,
       lastSyncedSteps: lastSyncedSteps ?? this.lastSyncedSteps,
+      rangeStart: rangeStart ?? this.rangeStart,
     );
   }
 
@@ -37,6 +44,7 @@ class DailyStepRecord {
         'totalSteps': totalSteps,
         'totalEnergyWh': totalEnergyWh,
         'lastSyncedSteps': lastSyncedSteps,
+        if (rangeStart != null) 'rangeStart': rangeStart,
       };
 
   factory DailyStepRecord.fromJson(Map<String, dynamic> json) =>
@@ -45,5 +53,6 @@ class DailyStepRecord {
         totalSteps: json['totalSteps'] as int,
         totalEnergyWh: (json['totalEnergyWh'] as num).toDouble(),
         lastSyncedSteps: json['lastSyncedSteps'] as int,
+        rangeStart: json['rangeStart'] as String?,
       );
 }
