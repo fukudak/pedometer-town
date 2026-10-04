@@ -9,6 +9,9 @@ class BatteryStockDisplay extends StatelessWidget {
 
   static const int _batchSize = 10;
 
+  /// アイコン部分の最大幅。個数が多くても隣の文字やボタンを押し出さず、この幅で折り返す。
+  static const double _maxWidth = 72;
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -22,16 +25,19 @@ class BatteryStockDisplay extends StatelessWidget {
       );
     }
 
-    return Wrap(
-      spacing: 2,
-      runSpacing: 2,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        for (var i = 0; i < bigCount; i++)
-          Icon(Icons.battery_full, size: 28, color: colorScheme.primary),
-        for (var i = 0; i < smallCount; i++)
-          Icon(Icons.battery_std, size: 16, color: colorScheme.primary),
-      ],
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: _maxWidth),
+      child: Wrap(
+        spacing: 2,
+        runSpacing: 2,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          for (var i = 0; i < bigCount; i++)
+            Icon(Icons.battery_full, size: 28, color: colorScheme.primary),
+          for (var i = 0; i < smallCount; i++)
+            Icon(Icons.battery_std, size: 16, color: colorScheme.primary),
+        ],
+      ),
     );
   }
 }

@@ -154,11 +154,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     children: [
                       BatteryStockDisplay(count: energyProvider.pendingBatteries),
                       const SizedBox(width: 12),
-                      Text(
-                        'ストック: ${energyProvider.pendingBatteries} 個',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: colorScheme.onPrimaryContainer,
+                      Flexible(
+                        child: Text(
+                          'ストック: ${energyProvider.pendingBatteries} 個',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: colorScheme.onPrimaryContainer,
+                          ),
                         ),
                       ),
                     ],
