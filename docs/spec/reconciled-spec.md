@@ -61,7 +61,7 @@
 | 項目 | 値 | 根拠 |
 |---|---|---|
 | Android applicationId / minSdk | `com.pedometertown.pedometer_town` / 26 | `android/app/build.gradle.kts:29,32` |
-| Android 権限 | `health.READ_STEPS`, `ACTIVITY_RECOGNITION`, `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` | `AndroidManifest.xml:3-8` |
+| Android 権限 | `ACTIVITY_RECOGNITION`, `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`(`health.READ_STEPS` は Health Connect 併用廃止に伴い削除) | `AndroidManifest.xml:2-6` |
 | iOS 最低バージョン | 13.0 | `project.pbxproj`(`IPHONEOS_DEPLOYMENT_TARGET`) |
 | iOS Info.plist | `NSHealthShareUsageDescription`, `NSLocationWhenInUseUsageDescription` | `ios/Runner/Info.plist` |
 
@@ -263,7 +263,7 @@
 | 9 | Conflict / 仕様 | 段階名・「地球」表記 | 暗い地球/大都市が輝く 等 | 暗い星/…(§4.6 の表) | **Code** | `companion_stages.dart` |
 | 10 | Doc-only / 運用 | テスト一覧 | `max_level_behavior_test.dart` が無い | 存在 | **Code**(§5 に追記) | `test/` |
 | 11 | Code-only / 仕様 | 星画面の祝福ダイアログ順序、触覚、SnackBar、ホームの累積発電量カード | 一部のみ記載 | 実装済み | **Code**(§4.9) | `companion_screen.dart:55-98,173-192`, `home_screen.dart:190-196` |
-| 12 | Code-only / 運用 | Android/iOS の権限・最低 SDK、Health Connect 権限 | 技術スタックに権限 `ACTIVITY_RECOGNITION` のみ | `READ_STEPS`(現在は未使用)・位置情報権限・minSdk 26 | **Code**(§2.4) | `AndroidManifest.xml`, `build.gradle.kts` |
+| 12 | Code-only / 運用 | Android/iOS の権限・最低 SDK、Health Connect 権限 | 技術スタックに権限 `ACTIVITY_RECOGNITION` のみ | 位置情報権限・minSdk 26(`READ_STEPS` は削除済み) | **Code**(§2.4) | `AndroidManifest.xml`, `build.gradle.kts` |
 
 ## 7. Open Questions
 
