@@ -51,6 +51,22 @@ class FakeHealthService extends HealthService {
   }
 }
 
+/// 複数キーへの同期保存の途中で、1回だけプロセス終了相当の失敗を起こす。
+class InterruptingLocalStorage extends LocalStorage {
+  String? failAfterStep;
+  bool _failed = false;
+
+  InterruptingLocalStorage(super.prefs);
+
+  @override
+  Future<void> beforeEnergySyncCommitStep(String step) async {
+    if (!_failed && step == failAfterStep) {
+      _failed = true;
+      throw StateError('同期保存を中断: $step');
+    }
+  }
+}
+
 void main() {
   late LocalStorage storage;
   late SettingsProvider settingsProvider;
@@ -142,7 +158,11 @@ void main() {
         settingsProvider,
         coefficientSupplier: () => companionProvider.effectiveCoefficient,
       );
-      companionProvider = CompanionProvider(storage, provider, settingsProvider);
+      companionProvider = CompanionProvider(
+        storage,
+        provider,
+        settingsProvider,
+      );
 
       await companionProvider.feedChosen(FeedItemType.toy);
       expect(companionProvider.companion.toyCount, 1);
@@ -192,7 +212,10 @@ void main() {
       await provider.syncStepsFromHealth();
 
       // 開かなかった2日分(2000+1500)と6/19当日分(500)が失われず加算されている
-      expect(provider.lifetimeEnergyWh, closeTo(1000.0 + 2000.0 + 1500.0 + 500.0, 1e-9));
+      expect(
+        provider.lifetimeEnergyWh,
+        closeTo(1000.0 + 2000.0 + 1500.0 + 500.0, 1e-9),
+      );
       expect(storage.loadDailyStepRecord('2026-06-17').totalSteps, 2000);
       expect(storage.loadDailyStepRecord('2026-06-18').totalSteps, 1500);
       expect(provider.today.totalSteps, 500);
@@ -278,10 +301,16 @@ void main() {
       await provider.syncStepsFromHealth();
 
       // 直近側（2月上旬〜1月下旬）が埋まり、最古の 1/02 は上限を超えて切り捨てられる。
-      expect(storage.loadDailyStepRecord('2026-02-09').totalSteps, 1000,
-          reason: '直近の日が埋まっているべき');
-      expect(storage.loadDailyStepRecord('2026-01-02').totalSteps, 0,
-          reason: '上限を超えた最古の日は対象外');
+      expect(
+        storage.loadDailyStepRecord('2026-02-09').totalSteps,
+        1000,
+        reason: '直近の日が埋まっているべき',
+      );
+      expect(
+        storage.loadDailyStepRecord('2026-01-02').totalSteps,
+        0,
+        reason: '上限を超えた最古の日は対象外',
+      );
     });
 
     test('さかのぼり加算された満タン履歴は日付の古い順に並ぶ', () async {
@@ -305,8 +334,9 @@ void main() {
       await provider.syncStepsFromHealth();
 
       final events = storage.loadFullBatteryEvents();
-      final backfilled =
-          events.where((e) => e.date.startsWith('2026-06-1')).toList();
+      final backfilled = events
+          .where((e) => e.date.startsWith('2026-06-1'))
+          .toList();
       expect(backfilled.length, greaterThanOrEqualTo(2));
       final dates = backfilled.map((e) => e.date).toList();
       final sorted = [...dates]..sort();
@@ -391,8 +421,11 @@ void main() {
         settingsProvider,
         now: () => now,
       );
-      final historyProvider =
-          HistoryProvider(storage, provider, companionProvider);
+      final historyProvider = HistoryProvider(
+        storage,
+        provider,
+        companionProvider,
+      );
 
       // 1. 今日500歩を同期する。
       healthService.totalSteps = 500;
@@ -432,8 +465,11 @@ void main() {
         settingsProvider,
         now: () => now,
       );
-      final historyProvider =
-          HistoryProvider(storage, provider, companionProvider);
+      final historyProvider = HistoryProvider(
+        storage,
+        provider,
+        companionProvider,
+      );
 
       healthService.totalSteps = 500;
       await provider.syncStepsFromHealth();
@@ -509,7 +545,77 @@ void main() {
       // 6/17, 6/18, 6/19 の合計が一度だけ反映されている。
       expect(provider.lifetimeEnergyWh, closeTo(4500.0, 1e-9));
       final committed = storage.loadBackfillCommittedDates();
-      expect(committed.containsAll(['2026-06-17', '2026-06-18', '2026-06-19']), isTrue);
+      expect(
+        committed.containsAll(['2026-06-17', '2026-06-18', '2026-06-19']),
+        isTrue,
+      );
+    });
+
+    test('複数キーへの保存途中で終了しても、次回同期で一度だけ確定する', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final interruptingStorage = InterruptingLocalStorage(prefs);
+      final interruptingSettings = SettingsProvider(interruptingStorage);
+      final fakeHealth = FakeHealthService();
+      var now = DateTime(2026, 6, 16, 8);
+      final provider = EnergyProvider(
+        interruptingStorage,
+        fakeHealth,
+        interruptingSettings,
+        now: () => now,
+      );
+
+      fakeHealth.totalSteps = 0;
+      await provider.syncStepsFromHealth();
+
+      fakeHealth.stepsByDate['2026-06-17'] = 10000;
+      now = DateTime(2026, 6, 18, 8);
+      interruptingStorage.failAfterStep = 'battery_saved';
+
+      await expectLater(provider.syncStepsFromHealth(), throwsStateError);
+
+      // 日次記録と蓄電池だけが書かれた途中状態でも、次の同期冒頭で
+      // ジャーナルを再適用し、同じ日の発電を重ねて加算しない。
+      await provider.syncStepsFromHealth();
+
+      expect(provider.lifetimeEnergyWh, closeTo(10000.0, 1e-9));
+      expect(provider.pendingBatteries, 1);
+      expect(provider.battery.storedWh, closeTo(0.0, 1e-9));
+      expect(
+        interruptingStorage.loadDailyStepRecord('2026-06-17').totalSteps,
+        10000,
+      );
+      expect(interruptingStorage.loadFullBatteryEvents(), hasLength(1));
+      expect(
+        interruptingStorage.loadBackfillCommittedDates(),
+        contains('2026-06-17'),
+      );
+    });
+  });
+
+  group('EnergyProvider 当日同期の保存復旧', () {
+    test('当日の複数キー保存途中で終了しても、同じ歩数を二重加算しない', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final interruptingStorage = InterruptingLocalStorage(prefs)
+        ..failAfterStep = 'battery_saved';
+      final interruptingSettings = SettingsProvider(interruptingStorage);
+      final fakeHealth = FakeHealthService(totalSteps: 10000);
+      final provider = EnergyProvider(
+        interruptingStorage,
+        fakeHealth,
+        interruptingSettings,
+        now: () => DateTime(2026, 6, 19, 8),
+      );
+
+      await expectLater(provider.syncStepsFromHealth(), throwsStateError);
+      await provider.syncStepsFromHealth();
+
+      expect(provider.today.totalSteps, 10000);
+      expect(provider.lifetimeEnergyWh, closeTo(10000.0, 1e-9));
+      expect(provider.pendingBatteries, 1);
+      expect(provider.battery.storedWh, closeTo(0.0, 1e-9));
+      expect(interruptingStorage.loadFullBatteryEvents(), hasLength(1));
     });
   });
 }

@@ -20,7 +20,10 @@ void main() {
   // ハングするため、プラットフォームチャンネルをモックしておく。
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, (call) async => null);
+        .setMockMethodCallHandler(
+          SystemChannels.platform,
+          (call) async => null,
+        );
   });
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -36,10 +39,16 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final storage = LocalStorage(await SharedPreferences.getInstance());
     final settingsProvider = SettingsProvider(storage);
-    final energyProvider =
-        EnergyProvider(storage, HealthService(), settingsProvider);
-    final companionProvider =
-        CompanionProvider(storage, energyProvider, settingsProvider);
+    final energyProvider = EnergyProvider(
+      storage,
+      HealthService(),
+      settingsProvider,
+    );
+    final companionProvider = CompanionProvider(
+      storage,
+      energyProvider,
+      settingsProvider,
+    );
 
     // UI と同じ経路（投入）で発展度を level まで積む。
     for (var i = 0; i < level; i++) {
@@ -71,7 +80,8 @@ void main() {
 
     expect(
       find.text(
-          '発展度 ${CompanionStages.stageNumber(level)}/${CompanionStages.stages.length}'),
+        '発展度 ${CompanionStages.stageNumber(level)}/${CompanionStages.stages.length}',
+      ),
       findsOneWidget,
     );
     expect(find.textContaining('あと 1 回投入すると灯りが広がる'), findsOneWidget);
@@ -83,30 +93,36 @@ void main() {
 
     expect(
       find.text(
-          '発展度 ${CompanionStages.stageNumber(finalLevel)}/${CompanionStages.stages.length}'),
+        '発展度 ${CompanionStages.stageNumber(finalLevel)}/${CompanionStages.stages.length}',
+      ),
       findsOneWidget,
     );
     expect(find.text('軌道から見た星'), findsOneWidget);
     expect(find.textContaining('完成した星 1 個'), findsOneWidget);
-    expect(find.textContaining('あと $finalLevel 回投入すると次の星が完成する'), findsOneWidget);
+    expect(
+      find.textContaining('あと $finalLevel 回投入すると次の星が完成する'),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('最終段階後さらに投入を重ねると星の個数が増える',
-      (WidgetTester tester) async {
+  testWidgets('最終段階後さらに投入を重ねると星の個数が増える', (WidgetTester tester) async {
     final level = finalLevel * 2;
     await pumpAtLevel(tester, level);
 
     expect(
       find.text(
-          '発展度 ${CompanionStages.stageNumber(level)}/${CompanionStages.stages.length}'),
+        '発展度 ${CompanionStages.stageNumber(level)}/${CompanionStages.stages.length}',
+      ),
       findsOneWidget,
     );
     expect(find.textContaining('完成した星 2 個'), findsOneWidget);
-    expect(find.textContaining('あと $finalLevel 回投入すると次の星が完成する'), findsOneWidget);
+    expect(
+      find.textContaining('あと $finalLevel 回投入すると次の星が完成する'),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('最終段階到達直前で「投入」すると星の完成お祝いダイアログが出る',
-      (WidgetTester tester) async {
+  testWidgets('最終段階到達直前で「投入」すると星の完成お祝いダイアログが出る', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1080, 3200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -115,10 +131,16 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final storage = LocalStorage(await SharedPreferences.getInstance());
     final settingsProvider = SettingsProvider(storage);
-    final energyProvider =
-        EnergyProvider(storage, HealthService(), settingsProvider);
-    final companionProvider =
-        CompanionProvider(storage, energyProvider, settingsProvider);
+    final energyProvider = EnergyProvider(
+      storage,
+      HealthService(),
+      settingsProvider,
+    );
+    final companionProvider = CompanionProvider(
+      storage,
+      energyProvider,
+      settingsProvider,
+    );
 
     for (var i = 0; i < finalLevel - 1; i++) {
       await companionProvider.feedChosen(FeedItemType.meal);
@@ -126,7 +148,8 @@ void main() {
     companionProvider.clearPendingStageCelebrations();
     companionProvider.clearPendingCelebrations();
     companionProvider.clearPendingStarCompletions();
-    await energyProvider.creditStockedBatteries(1);
+    await storage.savePendingBatteries(1);
+    energyProvider.refreshDisplay();
 
     await tester.pumpWidget(
       MultiProvider(

@@ -37,11 +37,11 @@ class CompanionProvider extends ChangeNotifier {
     this._energyProvider,
     this._settingsProvider, {
     DateTime Function()? now,
-  })  : _now = now ?? DateTime.now,
-        _companion = _storage.loadCompanionState(),
-        _lastFedAt = _storage.loadCompanionLastFedAt(),
-        _celebratedStageIds =
-            (_storage.loadCelebratedStageIds() ?? <String>[]).toSet() {
+  }) : _now = now ?? DateTime.now,
+       _companion = _storage.loadCompanionState(),
+       _lastFedAt = _storage.loadCompanionLastFedAt(),
+       _celebratedStageIds = (_storage.loadCelebratedStageIds() ?? <String>[])
+           .toSet() {
     _migrateCelebratedStagesIfNeeded();
   }
 
@@ -54,21 +54,21 @@ class CompanionProvider extends ChangeNotifier {
 
   /// 蓄電池容量（給餌効果込み）
   double get effectiveCapacityWh => CompanionLogic.effectiveCapacity(
-        GameConstants.initialBatteryCapacityWh,
-        _companion,
-      );
+    GameConstants.initialBatteryCapacityWh,
+    _companion,
+  );
 
   /// エネルギー係数（ユーザー設定ベース × 給餌効果）
   double get effectiveCoefficient => CompanionLogic.effectiveCoefficient(
-        _settingsProvider.settings.energyCoefficient,
-        _companion,
-      );
+    _settingsProvider.settings.energyCoefficient,
+    _companion,
+  );
 
   /// なつき度レベル・累積発電量を合成した愛着スコア
   int get bondScore => CompanionLogic.bondScore(
-        level: _companion.level,
-        lifetimeEnergyWh: _energyProvider.lifetimeEnergyWh,
-      );
+    level: _companion.level,
+    lifetimeEnergyWh: _energyProvider.lifetimeEnergyWh,
+  );
 
   /// まだ画面で祝福表示されていない、新たに解除された実績一覧。
   List<Achievement> get pendingCelebrations =>
@@ -84,7 +84,8 @@ class CompanionProvider extends ChangeNotifier {
 
   FeedEvent? get pendingFeedEvent => _pendingFeedEvent;
 
-  bool isStageCelebrated(String stageId) => _celebratedStageIds.contains(stageId);
+  bool isStageCelebrated(String stageId) =>
+      _celebratedStageIds.contains(stageId);
 
   /// 祝福表示済みとしてキューをクリアする。
   void clearPendingCelebrations() {
@@ -115,27 +116,87 @@ class CompanionProvider extends ChangeNotifier {
   /// ストック不足なら何もせず false を返す。すでに処理中の呼び出しがあれば
   /// （連打対策）即座に false を返す。
   ///
-  /// 消費後の発展更新（[feedChosen]）に失敗した場合は、消費したストックを戻し、
-  /// メモリ上の発展度もこの呼び出し前の状態に戻してから例外を再送出する
-  /// （「電池だけ消費」「発展だけ増加」という不整合を残さないため）。
-  /// ただし [feedChosen] 内部の副次的な永続化（実績・進化祝福の記録、
-  /// 蓄電池容量の反映等）はこの呼び出し単位のロールバック対象ではない。
+  /// 発展状態・ストック・最終投入日時・実績・段階履歴を [InvestmentCommit] として
+  /// 先にジャーナルへ保存し、複数キーへの反映途中で失敗しても同じ確定状態へ復旧する。
   Future<bool> investBattery() async {
     if (_investing) return false;
     _investing = true;
     try {
-      final consumed = await _energyProvider.consumeStockedBatteries(1);
-      if (!consumed) return false;
+      if (_energyProvider.pendingBatteries < 1) return false;
 
-      final companionBeforeFeed = _companion;
+      final beforeLevel = _companion.level;
+      final companionAfter = _companion.addFeed(FeedItemType.meal);
+      final afterLevel = companionAfter.level;
+      final fedAt = _now();
+      final todayKey = formatDateKey(fedAt);
+
+      final existingStageEvents = _storage.loadCompanionStageEvents();
+      final newlyReached = CompanionStages.reachedStages(afterLevel).where((
+        stage,
+      ) {
+        if (stage.id == 'egg') return false;
+        return stage.minLevel > beforeLevel &&
+            !_celebratedStageIds.contains(stage.id);
+      }).toList();
+      final celebratedAfter = {
+        ..._celebratedStageIds,
+        ...newlyReached.map((stage) => stage.id),
+      };
+      final stageEventsAfter = [
+        ...existingStageEvents,
+        for (final stage in newlyReached)
+          CompanionStageEvent(stageId: stage.id, date: todayKey),
+      ];
+
+      final existingAchievementEvents = _storage.loadAchievementEvents();
+      final unlockedIds = existingAchievementEvents
+          .map((event) => event.id)
+          .toSet();
+      final newlyUnlocked = Achievements.all
+          .where(
+            (achievement) =>
+                !unlockedIds.contains(achievement.id) &&
+                achievement.isUnlocked(companionAfter),
+          )
+          .toList();
+      final achievementEventsAfter = [
+        ...existingAchievementEvents,
+        for (final achievement in newlyUnlocked)
+          AchievementEvent(id: achievement.id, date: todayKey),
+      ];
+
+      final commit = InvestmentCommit(
+        companion: companionAfter,
+        pendingBatteries: _energyProvider.pendingBatteries - 1,
+        lastFedAt: fedAt,
+        achievementEvents: achievementEventsAfter,
+        stageEvents: stageEventsAfter,
+        celebratedStageIds: celebratedAfter,
+      );
+
       try {
-        await feedChosen(FeedItemType.meal);
-        return true;
+        await _storage.commitInvestment(commit);
       } catch (_) {
-        _companion = companionBeforeFeed;
-        await _energyProvider.creditStockedBatteries(1);
-        rethrow;
+        // 一時的な書き込み失敗なら、ジャーナルをただちに再適用して完了させる。
+        // 復旧も失敗した場合はジャーナルを残し、次回起動時の復旧に委ねる。
+        final recovered = await _storage.recoverPendingInvestment();
+        if (!recovered) rethrow;
       }
+
+      _companion = companionAfter;
+      _lastFedAt = fedAt;
+      _celebratedStageIds
+        ..clear()
+        ..addAll(celebratedAfter);
+      _pendingStageCelebrations.addAll(newlyReached);
+      _pendingCelebrations.addAll(newlyUnlocked);
+      _pendingFeedEvent = FeedEvent(type: FeedItemType.meal, createdAt: fedAt);
+      _recordStarCompletions(beforeLevel: beforeLevel, afterLevel: afterLevel);
+
+      // ストレージへ一括確定した値を各 Provider のメモリへ反映する。
+      _energyProvider.refreshDisplay();
+      notifyListeners();
+      return true;
     } finally {
       _investing = false;
     }
@@ -159,7 +220,10 @@ class CompanionProvider extends ChangeNotifier {
     await _storage.saveCompanionLastFedAt(_lastFedAt!);
 
     _pendingFeedEvent = FeedEvent(type: type, createdAt: _now());
-    await _recordStageCelebrations(beforeLevel: beforeLevel, afterLevel: afterLevel);
+    await _recordStageCelebrations(
+      beforeLevel: beforeLevel,
+      afterLevel: afterLevel,
+    );
     _recordStarCompletions(beforeLevel: beforeLevel, afterLevel: afterLevel);
   }
 
@@ -198,9 +262,12 @@ class CompanionProvider extends ChangeNotifier {
     required int beforeLevel,
     required int afterLevel,
   }) async {
-    final newlyReached = CompanionStages.reachedStages(afterLevel).where((stage) {
+    final newlyReached = CompanionStages.reachedStages(afterLevel).where((
+      stage,
+    ) {
       if (stage.id == 'egg') return false;
-      return stage.minLevel > beforeLevel && !_celebratedStageIds.contains(stage.id);
+      return stage.minLevel > beforeLevel &&
+          !_celebratedStageIds.contains(stage.id);
     }).toList();
     if (newlyReached.isEmpty) return;
 
@@ -230,10 +297,9 @@ class CompanionProvider extends ChangeNotifier {
     final initial = _storage.loadCelebratedStageIds();
     if (initial != null) return;
 
-    final reachedIds = CompanionStages.reachedStages(_companion.level)
-        .where((stage) => stage.id != 'egg')
-        .map((stage) => stage.id)
-        .toSet();
+    final reachedIds = CompanionStages.reachedStages(
+      _companion.level,
+    ).where((stage) => stage.id != 'egg').map((stage) => stage.id).toSet();
     _celebratedStageIds.addAll(reachedIds);
     unawaited(_storage.saveCelebratedStageIds(_celebratedStageIds.toList()));
   }
