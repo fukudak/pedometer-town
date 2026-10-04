@@ -41,10 +41,12 @@
 | HistoryScreen | 日次の歩数・発電量。全履歴クリアは星の発展状況も初期化する |
 | SettingsScreen | 体重・速度・発電係数・GPS 速度計測・星の名前・遊び方・バージョン表示 |
 
-CompanionScreen は 2026-08-10 に表示を簡素化した。きげん・発展度の数値・星スコア
-（愛着スコア）は画面に表示されない（内部ロジックとしては残っている。4.5〜4.6節参照）。
+CompanionScreen は 2026-08-10 に表示を簡素化した。きげん・星スコア（愛着スコア）は
+画面に表示されない（内部ロジックとしては残っている。4.5〜4.6節参照）。現在の段階名と
+`発展度 N/20`（段階番号/全段階数）は表示する（4.8節）。
 きらめきタイム・天気/季節演出は表示ではなく機能自体を削除したため、内部ロジックも
 存在しない（4.7章参照）。
+正本: `docs/spec/reconciled-spec.md`（2026-10-05 にコードと照合済み）。
 
 ---
 
@@ -209,8 +211,11 @@ energyWh = steps × (weightKg / 70) × (speedKmh / 5) × coefficient
       上限を古い日で使い切り、直近の歩数を取りこぼすため
     - 加算自体は満タン履歴が日付順に並ぶよう古い日から行う
     - 過去日の換算にも「現在の」体重・速度・係数を用いる（当時の設定は保持していないため）
-  - Android は HealthKit のような日付指定の過去データ取得手段がないため、
-    上記のベースライン方式のみで対応する（`getStepsForDate` は Android では常に `null`）
+  - Android は今日の歩数をセンサー（ベースライン方式）で取得し、過去日の個別取得
+    （`getStepsForDate`）のみ Health Connect をベストエフォートで問い合わせる。
+    非対応・未許可・失敗時は例外を投げず `null`（その日はベースライン繰越のみで対応）。
+    **未確定**: Health Connect が使える端末で数日空けると、日別加算とセンサー増分の
+    繰越が重複し二重計上し得る（正本 §7 参照）
 
 #### 3.4.1 同期カーソルと表示用履歴の分離（2026-08-10）
 
@@ -252,10 +257,10 @@ energyWh = steps × (weightKg / 70) × (speedKmh / 5) × coefficient
   （`LocalStorage.loadBackfillFloorDate` / `saveBackfillFloorDate`、キー
   `backfill_floor_date`）を使う。「前回同期日時」は同期のたびに更新されるため、
   それをそのまま下限にすると失敗した日が次回以降ずっと対象から外れてしまうため
-- 各日ごとに「日次記録の保存 → 蓄電池・累積発電量・ストック・満タン履歴の保存 →
-  コミット済みマーカー（`LocalStorage.loadBackfillCommittedDates` /
-  `saveBackfillCommittedDates`、キー `backfill_committed_dates`）への追加」を順番に行う。
-  コミット済みマーカーに入っている日だけを「反映済み」とみなす
+- 各日の確定状態（日次記録・蓄電池・累積発電量・ストック・満タン履歴・コミット済み日）を
+  `EnergySyncCommit` として `energy_sync_journal` に先行保存してから各キーへ反映する。
+  途中終了時は次回起動または同期の冒頭で同じスナップショットを再適用するため、どのキーの
+  書き込み後に終了しても二重加算せず同じ状態へ収束する
 - 日ごとの取得（`HealthService.getStepsForDate`）は個別に例外を捕捉して `null`
   （取得失敗）に変換する。1日分の取得失敗が他の日の反映を巻き込んで失敗させない
   （`Future.wait` の一括失敗を避ける）
@@ -264,11 +269,9 @@ energyWh = steps × (weightKg / 70) × (speedKmh / 5) × coefficient
 失敗した日は次回同期で再試行され、かつ既に成功した日が二重加算されることはない
 （`test/energy_provider_test.dart` の `EnergyProvider さかのぼり同期の冪等性` グループ）。
 
-**残る制約**: SharedPreferences には複数キーにまたがる本当のトランザクションが無いため、
-1日分の処理の最中（例: 蓄電池保存後・コミット済みマーカー保存前）にアプリが強制終了した
-場合は、理論上ごく僅かな不整合が残り得る。現実的に起きやすい失敗（日をまたぐ複数日の処理中
-に1日だけ失敗する、次回同期まで中断する）に対しては安全に回復できる設計だが、完全な
-ACID 保証ではない。
+SharedPreferences 自体は複数キーのACIDトランザクションではないが、先行書き込みする
+ジャーナルを冪等に再適用することで、アプリ終了を含む途中中断から論理コミット単位で回復する。
+壊れて復号できないジャーナルは以後の同期を永久に妨げないよう破棄する。
 
 ---
 
@@ -345,7 +348,9 @@ class CompanionState {
 同期カーソル・さかのぼり同期の冪等化用（3.4.1, 3.4.2節）:
 `today_synced_date` / `today_synced_steps`（今日の同期差分カーソル。表示用履歴とは別で
 履歴削除の影響を受けない）、`backfill_floor_date`（さかのぼり対象の下限日、初回同期時に
-一度だけ固定）、`backfill_committed_dates`（さかのぼり反映済みの日付一覧）
+一度だけ固定）、`backfill_committed_dates`（さかのぼり反映済みの日付一覧）、
+`energy_sync_journal`（歩数同期の途中終了から復旧するスナップショット）、
+`investment_journal`（電池投入の途中終了から復旧するスナップショット）
 
 旧 `town_buildings` キーは companion カウント未作成時のマイグレーション専用（座標は破棄）。
 
@@ -421,12 +426,15 @@ bondScore = level × 10 + floor(lifetimeEnergyWh / 100)
 
 ### 4.8 相棒画面の表示
 
-CompanionScreen の表示は 2026-08-10 に簡素化された。現在表示しているのは
-地球儀（`_CompanionStage`/`CompanionAvatar`、見た目は変更なし）・累積発電量
-（`EnergyProvider.lifetimeEnergyWh`）・ストック表示と投入ボタン・次の発展段階までの
-残り回数カードのみ。星の名前・発展度の数値・きげんラベル・星スコアの表示は削除した
-（4.5〜4.6節のとおり内部ロジックとしては残っている）。きらめきタイム・天気/季節演出は
-4.7節のとおり実装ごと削除した。
+CompanionScreen が表示するのは、AppBar の星の名前（空なら「わたしの星」）・
+地球儀（`_CompanionStage`/`CompanionAvatar`）・現在の段階名と `発展度 N/20`
+（`CompanionStages.stageNumber`/`stages.length`）・累積発電量
+（`EnergyProvider.lifetimeEnergyWh`）・ストック表示と投入ボタン・
+次の段階までの残り回数カード（最終段階以降は「完成した星 N 個」カード）。
+きげんラベル・星スコアは表示しない（4.5〜4.6節のとおり内部ロジックとしては残っている）。
+きらめきタイム・天気/季節演出は4.7節のとおり実装ごと削除した。
+演出: 投入時に触覚と SnackBar「電力を投入した（発展度 +1）」。祝福ダイアログは
+段階到達 → 星の完成（紙吹雪・強い触覚）→ 実績の順に表示する。
 
 ### 4.9 地球儀ビュー（`CompanionAvatar`）
 
@@ -437,7 +445,9 @@ CompanionScreen の表示は 2026-08-10 に簡素化された。現在表示し�
   縁に近い点ほど暗く小さくする（`limb` 減衰）ことで、板ではなく球体が回っているように見せる
 - 発展度（`EarthLights`/`TownStats.buildingCount`）に応じて明るい都市から順に点灯していく
 - ドラッグで手動回転可（`interactive: true` の場合）。指を離すと自動回転を再開
-- 発展度17（最終段階）到達時の演出は都市光点の増加のみ。以前あった軌道アーク装飾は
+- 最終段階（発展度55）到達後は、完成した星1個分（55回）を1周期として灯りが周期内の
+  進み具合に置き換わる（`EarthLights._cycleLevel`）。完成の瞬間は満天、次の投入から
+  真っ暗に戻って再び広がる（6章の「完成した星」）。以前あった軌道アーク装飾は
   地表と無関係に浮いて見えるため 2026-08-08 に削除した。きらめき粒子の視覚効果
   （`showSparkles`）も 2026-08-10 に削除した（4.7節参照）
 
@@ -485,11 +495,15 @@ booster・toy の効果自体（`CompanionState`/`feed_item_definitions.dart`）
 `CompanionProvider.feedChosen(type)` は引き続き存在するが、それを呼び出すUI導線がないため、
 現状は事実上到達不能。
 
-| type | 表示名 | コスト(満タン蓄電池個数) | 効果 | UI から到達可能か |
-|------|--------|---------------------------|------|--------------------|
-| meal | ごはん | 1 | なつき度(発展度) +1（数値効果なし） | ○（唯一の投入経路） |
-| booster | げんきの素 | 2 | 蓄電池容量 +2,000 Wh | ×（呼び出すUI導線がない） |
-| toy | おもちゃ | 1 | 係数 ×1.1（累積乗算） | ×（同上） |
+| type | コスト定義(満タン蓄電池個数) | 効果 | UI から到達可能か |
+|------|---------------------------|------|--------------------|
+| meal | 1 | なつき度(発展度) +1（数値効果なし） | ○（唯一の投入経路） |
+| booster | 2 | 蓄電池容量 +2,000 Wh | ×（呼び出すUI導線がない） |
+| toy | 1 | 係数 ×1.1（累積乗算） | ×（同上） |
+
+> `FeedItemDefinition` の `displayName`（建材/配線キット/街灯アップ）・`batteryCost`・
+> `icon` は旧町ビル名称が残ったもので、lib/test のどこからも参照されていない
+> （仕様としては確定しない）。
 
 > 給餌に「上限」はない。旧バージョンにあった 5×5 グリッド・空きマス判定は廃止した
 （`CompanionState` は座標を持たず、種類別カウントのみを保持する）。
@@ -498,8 +512,8 @@ booster・toy の効果自体（`CompanionState`/`feed_item_definitions.dart`）
 
 1. 歩行でエネルギー蓄積 → 満タン到達で `pendingBatteries` 増加
 2. 星画面で「投入」ボタン → `CompanionProvider.investBattery()` を呼ぶ
-3. `investBattery()` 内でストック消費（`EnergyProvider.consumeStockedBatteries(1)`）と
-   発展更新（`feedChosen(FeedItemType.meal)`）を呼び出し側から見て単一の操作として実行する
+3. `investBattery()` 内でストック消費後と発展更新後の確定状態を計算し、
+   `InvestmentCommit` として復旧可能な単一の論理コミットで保存する
 4. 容量再計算・進化段階祝福・実績チェック
 
 #### 5.2.1 電池投入処理のアトミック化（2026-08-10）
@@ -515,39 +529,52 @@ booster・toy の効果自体（`CompanionState`/`feed_item_definitions.dart`）
   イベントループで、`await` を挟まない区間は他のコードに割り込まれないため、
   `Future.wait([investBattery(), investBattery()])` のように「同時に」呼んでも
   2回目の呼び出しは即座に `false` を返し、ストックは1個しか消費されない
-- ストック消費 → 発展更新の順に実行し、発展更新（`feedChosen`）が例外を投げた場合は
-  消費したストックを `EnergyProvider.creditStockedBatteries()` で戻し、メモリ上の
-  `CompanionState` もこの呼び出し前の状態に戻してから例外を再送出する
+- 発展状態・ストック・最終投入日時・実績・段階履歴を `InvestmentCommit` として
+  `investment_journal` に先行保存し、各キーへの反映途中で失敗した場合は同じ確定状態を再適用する
+- アプリ起動時にも未完了ジャーナルを復旧するため、強制終了後に「電池だけ消費」または
+  「発展だけ増加」という状態を残さない
 - `CompanionScreen` 側は `_investing` state で投入ボタンを処理中は無効化し、
   `investBattery()` が例外を投げた場合は SnackBar で通知する
 
-**残る制約**: ロールバックの対象は「ストック消費」と「`CompanionState` の発展度」に限る。
-`feedChosen`/`_feed` 内部の副次的な永続化（実績・進化祝福の記録、
-`EnergyProvider.applyBatteryState` による蓄電池容量の反映、`companion_last_fed_at` の
-更新）は、そこに到達した時点で個別に永続化されるため、この呼び出し単位のロールバック
-対象にはなっていない。完全なトランザクション化は本対応のスコープ外。
+UIからの通常投入はジャーナル方式で一体として確定する。内部・テスト用に残る
+`feedChosen` の直接呼び出しはストック消費を伴わず、従来どおり個別保存する。
 
 ---
 
 ## 6. 発展段階（地球の灯り）
 
-`CompanionStages.stages` に発展度（なつき度と同じ数値、投入回数の合計）のしきい値で定義:
+`CompanionStages.stages` に発展度（なつき度と同じ数値、投入回数の合計）のしきい値で定義（20段階）:
 
 | 発展度 | id | 段階名 |
 |--------|-----|--------|
-| 0 | egg | 暗い地球 |
-| 1 | crack | 最初の灯り |
-| 2 | hatch | 村の灯り |
-| 4 | kid | 街の光帯 |
-| 7 | charged | 大都市が輝く |
-| 10 | reliable | 大陸の光網 |
-| 13 | radiant | 夜の地球が浮かぶ |
-| 17 | star | 軌道から見た地球 |
+| 0 | egg | 暗い星 |
+| 1 | spark | 最初の灯り |
+| 2 | flicker | 小さな灯り |
+| 3 | hamlet | 集落の灯り |
+| 4 | village | 村の灯り |
+| 6 | crossroads | 灯りの村道 |
+| 8 | town | 小さな街 |
+| 10 | district | 街の光帯 |
+| 12 | suburb | 郊外へ広がる灯り |
+| 15 | metro | 大きな街が灯る |
+| 18 | megacity | 大都市が輝く |
+| 21 | region | 広がる都市圏 |
+| 24 | corridor | 地方を結ぶ光の道 |
+| 28 | continent | 大陸の光網 |
+| 32 | farshore | 大陸を越える灯り |
+| 36 | nightland | 夜の大陸が輝く |
+| 40 | hemisphere | 半球が輝く |
+| 45 | radiant | 夜の星が浮かぶ |
+| 50 | luminous | 満天の灯り |
+| 55 | star | 軌道から見た星 |
 
-最終段階（17）到達後は見た目の段階は固定され、`TownStats.buildingCount`/`population`
-（`CompanionStages.nextMilestone` 経由。`population` は現在 UI 未表示、`buildingCount` は
-地球儀の光点数の算出にのみ使用）だけが増え続ける。きらめきタイム演出・回数カウントは
-2026-08-10 に機能ごと削除した（4.7節）。
+最終段階（55）到達後は見た目の段階は固定される。最終段階に必要だった55回と同じ回数を
+追加投入するたびに「完成した星」が1個増える
+（`earthCount = 1 + (level−55) ÷ 55`、`CompanionProvider.pendingStarCompletions` で
+祝福ダイアログを出す）。地球儀の灯りは完成ごとに真っ暗から再び広がる（4.9節）。
+`TownStats.buildingCount` は19点の折れ線補間（55以降は `145 + (level−55)×5`）で、
+地球儀の光点数（×12、上限1,400）の算出に使う。`population` は現在 UI 未表示。
+きらめきタイム演出・回数カウントは2026-08-10 に機能ごと削除した（4.7節）。
 
 ---
 
@@ -556,7 +583,9 @@ booster・toy の効果自体（`CompanionState`/`feed_item_definitions.dart`）
 `lib/constants/achievements.dart` に定義（4種。2026-08-10 にきらめきタイム関連の
 「はじめてのきらめき」「きらめきの常連」を削除し、6種から4種になった）:
 
-- はじめての投入 / 電力が回りはじめた / 灯りが広がりはじめた / 夜の地球が輝く
+- はじめての投入(1回) / 電力が回りはじめた(5回) / 灯りが広がりはじめた(2回) / 夜の星が輝く(10回)
+  （id は旧仕様の名残で内容と対応しない: `first_meal`/`first_booster`/`first_toy`/`ten_feeds`。
+  永続化済み履歴との互換のため変更しない）
 
 解除条件は `Achievement.isUnlocked(CompanionState companion)`（`CompanionState` のみを
 引数に取る。旧 `sparkleMoments` 引数は削除済み）。解除時は相棒画面で祝福ダイアログ表示。
@@ -568,9 +597,9 @@ booster・toy の効果自体（`CompanionState`/`feed_item_definitions.dart`）
 | Provider | 状態 | 主要メソッド |
 |----------|------|--------------|
 | SettingsProvider | PlayerSettings | `updateWeight`, `updateSpeed`, `updateCoefficient`, `updateCompanionName` |
-| EnergyProvider | BatteryState, DailyStepRecord, pendingBatteries, lifetimeEnergyWh | `syncStepsFromHealth`, `consumeStockedBatteries`, `creditStockedBatteries`（ロールバック用）, `resetProgress`, `refreshDisplay` |
+| EnergyProvider | BatteryState, DailyStepRecord, pendingBatteries, lifetimeEnergyWh | `syncStepsFromHealth`, `resetProgress`, `refreshDisplay` |
 | CompanionProvider | CompanionState, mood, bondScore, 実績・進化キュー, FeedEvent | `feedChosen`, `investBattery`（ストック消費+発展更新の単一操作）, `resetProgress`, `effectiveCapacityWh`, `effectiveCoefficient` |
-| HistoryProvider | — | `loadHistory`, `deleteHistoryRecord`, `clearHistory`（全履歴削除＋星の発展状況リセット）, イベント読み出し |
+| HistoryProvider | — | `loadHistory`, `deleteHistoryRecord`, `clearHistory`（全履歴削除＋星の発展状況リセット）（この3つのみ） |
 
 `EnergyProvider` は `CompanionProvider.effectiveCoefficient` を係数供給元として参照する。
 `HistoryProvider` は `CompanionProvider` にも依存する（`clearHistory` が
@@ -629,15 +658,16 @@ booster・toy の効果自体（`CompanionState`/`feed_item_definitions.dart`）
 | `energy_calculator_test.dart` | 計算式・上限なし |
 | `battery_state_test.dart` | 加算・消費・満タン折り返し |
 | `companion_logic_test.dart` | 給餌効果・愛着スコア・きげん判定 |
-| `local_storage_test.dart` | シリアライズ・導出容量・旧データ移行 |
-| `energy_provider_test.dart` | 同期・係数・refreshDisplay・履歴削除後の二重加算防止（3.4.1節）・さかのぼり同期の冪等性（3.4.2節） |
-| `companion_provider_test.dart` | feedChosen・実績・進化祝福・investBattery のアトミック性（5.2.1節） |
+| `local_storage_test.dart` | シリアライズ・導出容量・旧データ移行・破損JSONの隔離 |
+| `energy_provider_test.dart` | 同期・係数・refreshDisplay・履歴削除後の二重加算防止（3.4.1節）・保存途中終了を含むさかのぼり同期の冪等性（3.4.2節） |
+| `companion_provider_test.dart` | feedChosen・実績・進化祝福・保存途中終了を含むinvestBattery のアトミック性（5.2.1節） |
 | `history_provider_test.dart` | 履歴削除・全履歴クリアによる星の発展状況リセット（8.1節） |
 | `health_service_test.dart` | Android 正規化・プラグイン例外の HealthServiceException への変換（9節） |
 | `companion_avatar_test.dart` | 全進化段階での `CompanionAvatar` 描画 |
 | `town_stats_test.dart` | `TownStats.buildingCount`/`population` の算出 |
 | `home_and_settings_screen_test.dart` | ホーム/設定画面のナビゲーション（遊び方ボタンの位置、星アイコン） |
 | `settings_screen_test.dart` | フォーカスを外さない保存時の入力反映・不正値のフォールバック/クランプ（4.11節）・バージョン表示（1節） |
+| `max_level_behavior_test.dart` | 最終段階前後の相棒画面表示（`発展度 N/20`、完成した星） |
 | `widget_test.dart` | アプリ起動 |
 
 > `companion_atmosphere_test.dart`、`companion_weather_overlay_test.dart` は
@@ -657,7 +687,6 @@ booster・toy の効果自体（`CompanionState`/`feed_item_definitions.dart`）
 | なつき度 | 給餌回数の合計。進化段階を決定する（＝発展度） |
 | 愛着スコア | なつき度×10 + 累積発電量/100。内部指標のみ（非表示） |
 | きげん | 最終給餌からの経過で決まる気分（happy / normal / lonely / none）。地球儀の色味への薄いティントのみ（テキスト非表示） |
-| なでる | 相棒タップの軽い触れ合い演出（電気を消費しない） |
 | 同期カーソル | 今日すでに同期済みの歩数を、画面の履歴とは別に保持する値。履歴削除の影響を受けない（3.4.1節） |
 | さかのぼり基準日 | さかのぼり同期の対象とする最古の日付。初回同期時に一度だけ固定する（3.4.2節） |
 
