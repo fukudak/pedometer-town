@@ -123,6 +123,7 @@ class EnergyProvider extends ChangeNotifier {
       totalSteps: _today.totalSteps + effectiveDelta,
       totalEnergyWh: _today.totalEnergyWh + newEnergyWh,
       lastSyncedSteps: totalSteps,
+      rangeStart: _skippedRangeStart(todayKey),
     );
     _lastSyncedAt = _now();
 
@@ -135,6 +136,26 @@ class EnergyProvider extends ChangeNotifier {
 
     await _persist(todayKey, totalSteps, fullBatteryEvents);
     notifyListeners();
+  }
+
+  /// 1日以上アプリを開かなかった分が今日にまとめて計上される場合の集計開始日
+  /// （前回同期日）を返す。まとめ計上でない、または既に設定済みなら null。
+  /// 前回同期日と今日の間に丸1日以上空きがある（前回同期日が一昨日以前）ときだけ対象。
+  String? _skippedRangeStart(String todayKey) {
+    if (!_healthService.aggregatesSkippedDays || _today.rangeStart != null) {
+      return null;
+    }
+    final lastSynced = _lastSyncedAt;
+    if (lastSynced == null) return null;
+    final now = _now();
+    final dayBeforeYesterday = DateTime(now.year, now.month, now.day - 2);
+    final lastSyncedDate = DateTime(
+      lastSynced.year,
+      lastSynced.month,
+      lastSynced.day,
+    );
+    if (lastSyncedDate.isAfter(dayBeforeYesterday)) return null;
+    return formatDateKey(lastSyncedDate);
   }
 
   /// 前回同期日の翌日から昨日までのうち、まだ蓄電池・累積発電量へ反映しきれていない

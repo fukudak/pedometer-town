@@ -175,6 +175,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   icon: Icons.directions_walk,
                   label: '今日の歩数',
                   value: '${today.totalSteps}',
+                  note: today.rangeStart == null
+                      ? null
+                      : '${_shortDate(today.rangeStart!)}〜今日の合計',
                 ),
               ),
               const SizedBox(width: 12),
@@ -230,16 +233,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 }
 
+String _shortDate(String isoDate) {
+  final parts = isoDate.split('-');
+  if (parts.length != 3) return isoDate;
+  return '${int.parse(parts[1])}/${int.parse(parts[2])}';
+}
+
 class _StatCard extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+  final String? note;
   final bool fullWidth;
 
   const _StatCard({
     required this.icon,
     required this.label,
     required this.value,
+    this.note,
     this.fullWidth = false,
   });
 
@@ -275,6 +286,12 @@ class _StatCard extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 18, fontWeight: FontWeight.w700),
                   ),
+                  if (note != null)
+                    Text(
+                      note!,
+                      style: TextStyle(
+                          fontSize: 12, color: colorScheme.outline),
+                    ),
                 ],
               ),
       ),

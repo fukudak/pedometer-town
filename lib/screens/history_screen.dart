@@ -128,7 +128,13 @@ class HistoryScreen extends StatelessWidget {
                           ),
                         ),
                         title: Text(_formatDate(record.date)),
-                        subtitle: Text('${record.totalSteps} 歩'),
+                        subtitle: Text(
+                          record.rangeStart == null
+                              ? '${record.totalSteps} 歩'
+                              : '${_formatShortDate(record.rangeStart!)}〜'
+                                  '${_formatShortDate(record.date)} の合計 '
+                                  '${record.totalSteps} 歩',
+                        ),
                         trailing: Text(
                           '${record.totalEnergyWh.toStringAsFixed(1)} Wh',
                           style: const TextStyle(fontWeight: FontWeight.w700),
@@ -150,6 +156,12 @@ class HistoryScreen extends StatelessWidget {
               ],
             ),
     );
+  }
+
+  String _formatShortDate(String isoDate) {
+    final parts = isoDate.split('-');
+    if (parts.length != 3) return isoDate;
+    return '${int.parse(parts[1])}/${int.parse(parts[2])}';
   }
 
   String _formatDate(String isoDate) {

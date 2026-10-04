@@ -45,7 +45,7 @@
 | パッケージ | バージョン | 用途 |
 |---|---|---|
 | Flutter / Dart SDK | `^3.12.1` | — |
-| `health` | `^13.0.0` | iOS HealthKit。Android では Health Connect(過去日の副系) |
+| `health` | `^13.0.0` | iOS HealthKit(Android では使わない) |
 | `pedometer` | `^4.2.0` | Android 歩数センサー(主系) |
 | `permission_handler` | `^12.0.3` | Android `ACTIVITY_RECOGNITION` |
 | `geolocator` | `^13.0.0` | GPS 歩行速度計測 |
@@ -74,7 +74,7 @@
 | `PlayerSettings` | `weightKg` 30〜200(既定70)、`defaultSpeedKmh` 0.5〜15.0(既定5.0)、`energyCoefficient` 0.1〜5.0(既定1.0)、`companionName`(既定 `''`) | double×3 + String | `player_settings.dart`, `game_constants.dart` |
 | `BatteryState` | `storedWh`, `capacityWh`(導出値) | double | `battery_state.dart` |
 | `CompanionState` | `mealCount`, `boosterCount`, `toyCount`。`level = 合計` | int×3 | `companion_state.dart:18` |
-| `DailyStepRecord` | `date`(`YYYY-MM-DD`), `totalSteps`, `totalEnergyWh`, `lastSyncedSteps`(表示用) | — | `daily_step_record.dart` |
+| `DailyStepRecord` | `date`(`YYYY-MM-DD`), `totalSteps`, `totalEnergyWh`, `lastSyncedSteps`(表示用), `rangeStart`(任意。まとめ計上の集計開始日) | — | `daily_step_record.dart` |
 | `FullBatteryEvent` | `number`, `date` | — | `full_battery_event.dart` |
 | `AchievementEvent` | `id`, `date` | — | `achievement_event.dart` |
 | `CompanionStageEvent` | `stageId`, `date` | — | `companion_stage_event.dart` |
@@ -136,10 +136,11 @@
 | OS | 今日の歩数 | 過去日の歩数(`getStepsForDate`) |
 |---|---|---|
 | iOS | HealthKit `getTotalStepsInInterval(今日0:00, 現在)`。失敗/`null` は `HealthServiceException` | HealthKit の日別集計 |
-| Android | 歩数センサー(`pedometer`、5 秒タイムアウト)をベースライン正規化。ベースラインは「**最終同期時点のセンサー値**」で同期のたびに前進 | **Health Connect(`health` パッケージ)をベストエフォートで問い合わせ**。非対応・未許可・失敗時は例外を投げず `null` |
+| Android | 歩数センサー(`pedometer`、5 秒タイムアウト)をベースライン正規化。ベースラインは「**最終同期時点のセンサー値**」で同期のたびに前進 | **常に `null`**(2026-10-05 に Health Connect 併用を廃止。まとめ計上との二重計上を避けるため) |
 
 - Android 正規化(`normalizeAndroidSteps`): 初回(ベースライン未設定)は増分 0 で現在値を起点にする。`raw < baseline`(端末再起動)は `raw` をそのまま増分。戻り値 = `今日の同期済みカーソル + 増分`(`health_service.dart:158-182`)。日またぎでも増分を取りこぼさず、前日までの加算分は二重計上しない(`health_service_test.dart` の通し同期シナリオ)。
-- 権限(`requestPermissions`): Android は `ACTIVITY_RECOGNITION` が**必須**(拒否で例外)。Health Connect の `requestAuthorization` は**ベストエフォート**(失敗は無視)。iOS は HealthKit 歩数読み取りが必須。`configure()` の失敗は Android では無視、iOS では例外。
+- 権限(`requestPermissions`): Android は `ACTIVITY_RECOGNITION` が必須(拒否で例外)。iOS は HealthKit 歩数読み取りが必須。`configure()` は Android では何もせず、iOS では失敗で例外。
+- **まとめ計上の期間表示**: Android で前回同期日が一昨日以前のとき、当日の `DailyStepRecord.rangeStart` に前回同期日を記録する(`EnergyProvider._skippedRangeStart`)。履歴は「M/D〜M/D の合計 N 歩」、ホームの今日の歩数カードは「M/D〜今日の合計」と表示する。
 - 例外: プラグイン例外は `HealthServiceException` に変換し内部詳細を出さない。ホームは例外メッセージを SnackBar 表示、想定外エラーは「同期中にエラーが発生しました」。
 
 ### 4.4 さかのぼり同期(`_backfillMissedDays`)
@@ -254,7 +255,7 @@
 | 1 | Conflict / 仕様 | 発展段階 | 8 段階、最終 17(`spec` §6, §4.9) | 20 段階、最終 55 | **Code** | `companion_stages.dart:23-44`, `town_stats_test.dart:13,19` |
 | 2 | Conflict / 仕様 | 相棒画面の表示 | 発展度の数値は表示しない(`spec` 冒頭・§4.8、`requirements` §3.2) | 段階名＋`発展度 N/20` を表示 | **Code** | `companion_screen.dart:268-278`, `max_level_behavior_test.dart:83` |
 | 3 | Code-only / 仕様 | 「完成した星」サイクル、灯りの周期リセット、星完成ダイアログ | 「最終段階の演出は光点の増加のみ」(`spec` §4.9)。完成サイクルの記述なし | 実装済み・テスト済み | **Code**(§4.6, 4.9 に記載) | `companion_stages.dart:141-153`, `companion_avatar.dart:244-252`, `companion_provider.dart:232-241` |
-| 4 | Conflict / 仕様 | Android の `getStepsForDate` | 「常に `null`」(`spec` §3.4) | Health Connect を副系で問い合わせ | **Code**(二重計上リスクは Open Questions) | `health_service.dart:211-229`, `AndroidManifest.xml:3`, コミット `be5751c` |
+| 4 | Conflict / 仕様 | Android の `getStepsForDate` | 「常に `null`」(`spec` §3.4) | Health Connect を副系で問い合わせ(二重計上あり) | **Doc**(コードを修正し併用を廃止。2026-10-05) | `health_service.dart:211-229`, `AndroidManifest.xml:3`, コミット `be5751c` |
 | 5 | Conflict / 仕様 | アイテム表示名 | ごはん/げんきの素/おもちゃ | 建材/配線キット/街灯アップ(未使用値) | **識別子と効果のみ記載、表示名は注記** | `feed_item_definitions.dart:30-46` |
 | 6 | Doc-only / 仕様 | 「なでる」 | 用語集・将来検討に記載 | 実装なし(LP からも削除済み `c6661e2`) | 正本から除外 | grep(`lib`/`test` に該当なし) |
 | 7 | Doc-only / アーキ | `HistoryProvider` の「イベント読み出し」 | 記載あり | `loadHistory` / `deleteHistoryRecord` / `clearHistory` のみ | **Code** | `history_provider.dart` |
@@ -262,11 +263,11 @@
 | 9 | Conflict / 仕様 | 段階名・「地球」表記 | 暗い地球/大都市が輝く 等 | 暗い星/…(§4.6 の表) | **Code** | `companion_stages.dart` |
 | 10 | Doc-only / 運用 | テスト一覧 | `max_level_behavior_test.dart` が無い | 存在 | **Code**(§5 に追記) | `test/` |
 | 11 | Code-only / 仕様 | 星画面の祝福ダイアログ順序、触覚、SnackBar、ホームの累積発電量カード | 一部のみ記載 | 実装済み | **Code**(§4.9) | `companion_screen.dart:55-98,173-192`, `home_screen.dart:190-196` |
-| 12 | Code-only / 運用 | Android/iOS の権限・最低 SDK、Health Connect 権限 | 技術スタックに権限 `ACTIVITY_RECOGNITION` のみ | `READ_STEPS`・位置情報権限・minSdk 26 | **Code**(§2.4) | `AndroidManifest.xml`, `build.gradle.kts` |
+| 12 | Code-only / 運用 | Android/iOS の権限・最低 SDK、Health Connect 権限 | 技術スタックに権限 `ACTIVITY_RECOGNITION` のみ | `READ_STEPS`(現在は未使用)・位置情報権限・minSdk 26 | **Code**(§2.4) | `AndroidManifest.xml`, `build.gradle.kts` |
 
 ## 7. Open Questions
 
-- [ ] **【要確認・高】Android の二重計上の可能性**: Health Connect が利用できる端末で数日アプリを開かなかった場合、①さかのぼり同期が昨日以前の日別歩数を加算し、②同時にセンサー正規化は前回同期以降の増分**全体**を「今日分」として加算する(`normalizeAndroidSteps` は日をまたいだ増分を今日に積む)。同じ歩数が 2 回計上され得る。`health_service_test.dart` と `energy_provider_test.dart:224` は両者の組合せをカバーしていない。意図(コミット `be5751c` は「日毎に記録される」としている)と実挙動を実機またはテストで確認し、必要なら別タスクで修正。
+- [x] ~~Android の二重計上~~: 再現テスト(`test/android_skipped_days_test.dart`)で確認のうえ、Health Connect 併用を廃止して解消。実機(数日空けた Android)での確認は未実施。
 - [ ] **【要確認・高】iOS の HealthKit Capability**: `ios/` に `*.entitlements` が無く、`project.pbxproj` に HealthKit の記述が見当たらない。Info.plist の使用目的文言はあるが、実機で権限ダイアログが出て歩数が取れるかは本照合では未確認(Xcode の Signing & Capabilities と実機で確認)。
 - [ ] **実績 id と内容の不一致**(`first_booster` = 5 回投入 等): 永続化済み履歴との互換のため変更不可か、移行して直すかの方針。
 - [ ] **`FeedItemDefinition` の未使用値**(表示名・コスト・アイコン)と `feedChosen` / `booster` / `toy`: 将来 UI を復活させるのか、整理するのか(`requirements` §4「将来検討」に「UI 復活」あり)。
